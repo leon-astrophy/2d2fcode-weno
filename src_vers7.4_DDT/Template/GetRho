@@ -1,0 +1,2153 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This section for reading files from MESA
+
+ELSEIF(read_oldfile_flag == 1) THEN
+
+   WRITE(*,*) 'Read from the saved files'
+
+   ! Read from the old files
+   ! Set up the file to be read
+   ! You need to modify fileno_ini to get to the right 
+   ! (Lightpost) Step 3: Set the fileno_ini to the file I want to read
+   fileno_ini = restart_fileno
+   fileno_ini2 = restart_fileno2
+   write(fileno,*) fileno_ini
+   fileno = ADJUSTL(fileno)
+   fileno_len = LEN_TRIM(fileno)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   rho1_a = restart_rho1_a   !Set the coefficient to get pure DM
+   rho2_a = restart_rho2_a    !Set the coefficient to get pure NM
+
+   ! Set DM if no DM data is available               
+   rho1(:,:) = rho1_a
+   vel1_r(:,:) = vel1_a
+   vel1_z(:,:) = vel1_a
+   vel1_p(:,:) = vel1_a
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read in NM density and initial setting
+   WRITE(*,*) 'Read DM density'
+   open(unit=401, file='Star_WENO_Density_NM_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) n, global_time
+   READ(401,*)             
+   !READ(401,*) length_step_r, length_step_z
+   READ(401,*) dx, dt
+   rho2(:,:) = rho2_a
+
+   DO k = 1, length_step_z
+      READ(401,*) (rho2(j,k), j=1, length_step_r)
+   ENDDO
+   CLOSE(401)
+   CALL boundary1D_NM(rho2, even)
+
+   n = n + 1
+
+   !rho2_a = MIN(1.0D-4 * rho2(1,401), rho2_a)         
+   CALL GETGRID
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !****************************************************************!
+   ! Must change according to the explosion results 		    !
+   ! (Lightpost) Step 4: Set the found_deton_flag and found_deton...!
+   !****************************************************************!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
+   movinggrid_flag = restart_movinggrid_flag
+   checkstepnm_flag = restart_checkstep_flag
+
+   found_deton_flag = restart_found_deton_flag
+   found_deton_time = restart_found_deton_time
+
+   WRITE(*,*)
+   WRITE(*,*) 'Reset movinggrid_flag =', restart_movinggrid_flag
+   WRITE(*,*) 'Reset checkstep_flag =', restart_checkstep_flag
+   WRITE(*,*) 'Reset found_deton_flag =', restart_found_deton_flag
+   WRITE(*,*) 'Reset found_deton_time =', restart_found_deton_time
+
+
+   IF(found_deton_flag == 1) THEN
+      output_profiletime = 0.5D4
+      output_flametime = 0.5D4   
+      output_turbtime = 0.5D4 
+      output_Helmtime = 0.5D4
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read in DM velocity
+   ! Usual no DM motion is assumed
+   !write(*,*) 'Read DM vel-r'
+   !open(unit=401, file='Star_WENO_Velocity_DM_r_'//fileno(1:fileno_len)//'.dat', action='read')
+   !read(401,*) dummy, dummy     
+   !read(401,*) length_step_r_part, length_step_z_part
+   !read(401,*) dummy   
+   !vel1_r(:,:) = vel1_a
+   !do k = length_step_z_part, 1, -1
+   !   read(401,*) (vel1_r(j,k), j=1, length_step_r_part)
+   !enddo
+   !close(401)
+   !call boundary1D_DM(vel1_r, oddR)
+   !
+   !write(*,*) 'Read NM velocity z'
+   !open(unit=401, file='Star_WENO_Velocity_DM_z_'//fileno(1:fileno_len)//'.dat', action='read')
+   !read(401,*) dummy, dummy     
+   !read(401,*) length_step_r_part, length_step_z_part
+   !read(401,*) dummy   
+   !vel1_z(:,:) = vel1_a
+   !do k = length_step_z_part, 1, -1
+   !   read(401,*) (vel1_z(j,k), j=1, length_step_r_part)
+   !enddo
+   !close(401)
+   !call boundary1D_DM(vel1_z, oddZ)
+   !
+   !write(*,*) 'Read NM velocity p'
+   !open(unit=401, file='Star_WENO_Velocity_DM_p_'//fileno(1:fileno_len)//'.dat', action='read')
+   !read(401,*) dummy, dummy     
+   !read(401,*) length_step_r_part, length_step_z_part
+   !read(401,*) dummy   
+   !vel1_p(:,:) = vel1_a
+   !do k = length_step_z_part, 1, -1
+   !   read(401,*) (vel1_p(j,k), j=1, length_step_r_part)
+   !enddo
+   !close(401)
+   !call boundary1D_DM(vel1_p, oddR)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Now read in the NM hydro   
+
+   write(*,*) 'Read NM velocity r'
+   open(unit=401, file='Star_WENO_Velocity_NM_r_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   vel2_r(:,:) = vel2_a
+   do k = 1, length_step_z
+      read(401,*) (vel2_r(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(vel2_r, oddR)
+
+   write(*,*) 'Read NM velocity z'
+   open(unit=401, file='Star_WENO_Velocity_NM_z_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*)
+   READ(401,*) 
+   vel2_z(:,:) = vel2_a
+   do k = 1, length_step_z
+      read(401,*) (vel2_z(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(vel2_z, oddZ)
+
+   write(*,*) 'Read NM velocity p'
+   open(unit=401, file='Star_WENO_Velocity_NM_p_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*)
+   vel2_p(:,:) = vel2_a
+   do k = 1, length_step_z
+      read(401,*) (vel2_p(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(vel2_p, oddR)
+
+   write(*,*) 'Read temperature'
+   open(unit=401, file='Star_WENO_Temperature_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*)
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   temp2(:,:) = temp_a
+   do k = 1, length_step_z
+      read(401,*) (temp2(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(temp2, even)
+   ! Must backup temperature for temperature finder
+   temp2_old(:,:) = temp2(:,:)
+ 
+   write(*,*) 'Read electron fraction'
+   open(unit=401, file='Star_WENO_Ye2_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*)
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   ye2(:,:) = ye_a
+   do k = 1, length_step_z
+      read(401,*) (Ye2(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(ye2, even)
+
+   write(*,*) 'Read potential'
+   open(unit=401, file='Star_WENO_Potential_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   do k = 1, length_step_z
+      read(401,*) (phi(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_FULL(phi, even)
+
+   potential_flag = 1
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Now read the PPT
+   ! Remember to change the fileno here
+ 
+   ! For individual file
+   if(tracer_flag == 1) then 
+
+      write(fileno,*) fileno_ini2
+      fileno = ADJUSTL(fileno)
+      fileno_len = LEN_TRIM(fileno)
+
+      open(unit=401, file='Star_WENO_PPT_'//fileno(1:fileno_len)//'.dat', action='read')
+      read(401,*) dummy, dummy
+      read(401,*) flag_end
+      do j = 1, nop, 1
+         read(401,*) dummy, rho_p(j), temp_p(j), pos_p(j,1), pos_p(j,2), vel_p(j,1), vel_p(j,2), leavebox_p(j)
+      enddo          
+
+   endif
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the chemical composition
+
+   write(fileno,*) fileno_ini
+   fileno = ADJUSTL(fileno)
+   fileno_len = LEN_TRIM(fileno)
+
+   if(totalion /= 7) stop 'Need to fix the file reader in Initial'
+
+   if(helmeos_flag == 1) then
+
+      xiso_a = 0.0D0
+
+      xiso_a(che4) = restart_xiso_he4
+      xiso_a(cc12) = restart_xiso_c12
+      xiso_a(co16) = restart_xiso_o16
+
+      WRITE(*,*) 'Initial atm isotope'
+      WRITE(*,*) xiso_a
+
+      CALL private_helmeos_azbar(xiso_a, abar_ini, zbar_ini, ye2_ini)
+      DO k = 1, length_step_z, 1
+         DO j = 1, length_step_r , 1
+            xiso(j,k,:) = xiso_a
+   	 ENDDO
+      ENDDO   
+
+      abar2(:,:) = abar_ini
+      zbar2(:,:) = zbar_ini
+
+      WRITE(*,*) 'Read He4'
+      OPEN(unit=401, file='Star_WENO_XHe4_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,che4), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)                 
+
+      WRITE(*,*) 'Read C12'  
+      OPEN(unit=401, file='Star_WENO_XC12_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cc12), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read O16'
+      OPEN(unit=401, file='Star_WENO_XO16_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,co16), j=1, length_step_r)
+      ENDDO
+      close(401)
+
+      WRITE(*,*) 'Read Ne20'
+      OPEN(unit=401, file='Star_WENO_XNe20_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*)
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cne20), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read Mg24'
+      OPEN(unit=401, file='Star_WENO_XMg24_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cmg24), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read Si28'
+      OPEN(unit=401, file='Star_WENO_XSi28_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*)
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,csi28), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read Ni56'
+      OPEN(unit=401, file='Star_WENO_XNi56_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cni56), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      CALL boundary2D_X
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the SGS turbulence
+
+   IF(turb_flag == 1) THEN
+
+      write(*,*) 'Read TurbQ'        
+      OPEN(unit=401, file='Star_WENO_TurbQ_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*)
+      turb_q(:,:) = turb_q_a
+      DO k = 1, length_step_z
+         read(401,*) (turb_q(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(turb_q, even)
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the deflagration level set and derived quantities
+
+   IF(global_time < 3.0D5) THEN
+
+   IF(flame_flag == 1) THEN
+
+      WRITE(*,*) 'Read Flame'
+      OPEN(unit=401, file='Star_WENO_scaG_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      scaG(:,:) = -1.0D0
+      DO k = 1, length_step_z
+         read(401,*) (scaG(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(scaG, even)
+
+      WRITE(*,*) 'Read FlameRatio'
+      OPEN(unit=401, file='Star_WENO_FlameRatio_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      flame_ratio(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (flame_ratio(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(flame_ratio, even)
+
+      WRITE(*,*) 'Read Flame Ratio Old'
+      OPEN(unit=401, file='Star_WENO_FlameRatioOld_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      flame_ratio_old(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (flame_ratio_old(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(flame_ratio_old, even)
+
+      CALL reinitialization2()               !You need this for aspherical initial flame
+      CALL identify_flamegrid()
+      CALL compute_flameratio()
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the detonation level set and derived quantities
+   
+   IF(deton_flag == 1) THEN
+
+      WRITE(*,*) 'Read Flame'
+      OPEN(unit=401, file='Star_WENO_scaG2_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      scaG2(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (scaG2(j,k), j=1, length_step_r)        
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(scaG2, even)
+
+      WRITE(*,*) 'Read DetonRatio'
+      OPEN(unit=401, file='Star_WENO_DetonRatio_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      deton_ratio(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (deton_ratio(j,k), j=1, length_step_r)
+      ENDDO            
+      CLOSE(401)
+      CALL boundary1D_NM(deton_ratio, even)
+
+      write(*,*) 'Read Deton Ratio Old'
+      OPEN(unit=401, file='Star_WENO_DetonRatioOld_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      deton_ratio_old(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (deton_ratio_old(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(deton_ratio_old, even)
+
+      CALL reinitialization3()               !You need this for aspherical initial flame
+      CALL identify_detongrid()
+      CALL compute_detonratio()   
+
+   ENDIF
+
+   ELSE
+
+   fusion_flag = 0
+   scaG(:,:) = 0.0D0
+   scaG2(:,:) = 0.0D0
+
+   flame_ratio(:,:) = 0.0D0
+   flame_ratio_old(:,:) = 0.0D0
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Find Abar and Zbar
+
+   if(xisotran_flag == 1) call find_azbar
+   if(burn_prog_flag == 1) CALL find_AZBAR_fromBPhi()
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Final stage
+   ! Find initial epsilon
+   write(*,*) 'Find epsilon'
+   call getepsilon
+
+   ! Check if the density profile is okay
+   if(checkrho_flag == 1) CALL CHECKRHO
+
+   ! Find mass for the potential 
+   CALL FINDMASS
+
+   ! Backup the array 
+   call BACKUP_REF_ARRAY        ! Important for the first temp search
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Flame ini
+
+   ! Delete the old flame and assign new flame
+   !if(override_flame_flag == 1) CALL GETFLAME(1)
+
+   ! Inject the deflagration energy
+   ! Note: Can switch to detonation accordingly
+   !if(override_flame_flag == 1) CALL FLAME_INI
+
+   ! Find the corresponding temperature
+   if(helmeos_flag == 1) CALL FINDHELMTEMP
+   !if(nuceos_flag == 1) call findnuctemp
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Update the local output time
+   output_logtime_last = global_time
+   output_profiletime_last = global_time
+
+   if(flame_flag == 1) output_flametime_last = global_time
+   if(turb_flag == 1) output_turbtime_last = global_time
+   if(helmeos_flag == 1) output_helmtime_last = global_time
+   if(tracer_flag == 1) output_PPTtime_last = global_time
+   
+   ! Set up the initial reduced array
+   ! Muted because of the general treatment
+   !length_step_r_part = length_step_r
+   !length_step_z_part = length_step_z
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   WRITE(*,*) 'Finished reading profiles ', restart_fileno
+   WRITE(*,*) 'Finished reading profiles ', restart_fileno2
+   WRITE(*,*) 
+   WRITE(*,*) 'Restart data'
+   WRITE(*,*) 'Step number = ', n
+   WRITE(*,*) 'Global time =', global_time
+   WRITE(*,*) 'dx = ', dx
+   WRITE(*,*) 'dt = ', dt
+   WRITE(*,*)
+   WRITE(*,*) 'Finished reading the saved file'
+   WRITE(*,*)
+
+ELSEIF(read_oldfile_flag == 2) THEN
+
+   ! This reads the main-sequence star file running from
+   ! stellar evolution code
+
+   WRITE(*,*) 'Read the initial profile'
+
+   n = 1
+   fileno_ini = -1
+   fileno_ini2 = -1
+
+   rho1_a = 1.0D-13    !Set the coefficient to get pure DM
+   rho2_a = 1.0D-17
+
+   rho1(:,:) = rho1_a
+   vel1_r(:,:) = 0.0D0
+   vel1_z(:,:) = 0.0D0
+   vel1_p(:,:) = 0.0D0
+
+   rho2(:,:) = rho2_a   
+   vel2_r(:,:) = vel2_a
+   vel2_z(:,:) = vel2_a
+   vel2_p(:,:) = vel2_a   
+
+   temp2(:,:) = temp_a
+   ye2(:,:) = 0.5D0
+
+   !xiso_a = 0.0D0               
+   !xiso_a(che4) = xhe4_ini
+   !xiso_a(cc12) = xc12_ini
+   !xiso_a(co16) = xo16_ini
+
+   !xiso_a = 0.0D0
+   !xiso_a(cc12) = 1.0D0
+
+   vel2_r(:,:) = vel2_a
+   vel2_z(:,:) = vel2_a
+   vel2_p(:,:) = vel2_a
+   temp2(:,:) = temp_a
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   OPEN(UNIT=100, FILE='input_file.dat', ACTION='read')
+   DO j = 1, length_step_r, 1
+
+      ! Read the source file
+      READ(100,*) (data_in(i), i=1,15)
+
+      ! Distribute the data accordingly
+      rho2(j,:) = data_in(3) / 6.171D17 
+      temp2(j,:) = data_in(4) / 1.0D9 
+      ye2(j,:) = data_in(5)  
+      vel2_r(j,:) = data_in(6) / 3.0D10 
+      m_r(j) = data_in(7)
+      phi(j,:) = data_in(8)
+      xiso(j,:,che4) = data_in(9)
+      xiso(j,:,cc12) = data_in(10)
+      xiso(j,:,co16) = data_in(11)
+      xiso(j,:,cne20) = data_in(12)
+      xiso(j,:,cmg24) = data_in(13)
+      xiso(j,:,csi28) = data_in(14)
+      xiso(j,:,cni56) = data_in(15)
+
+      ! Search for the atmosphere
+      !IF(rho2(j,1) < 1.0D-17) THEN
+      IF(xiso(j,1,che4) > 0.99D0) THEN
+
+         rho2_a = rho2(j,1)
+         temp_a = temp2(j,1)
+         ye_a = ye2(j,1)
+         xiso_a(:) = xiso(j,1,:)
+
+	 ! Report the search
+         WRITE(*,*) 'Reach the of carbon core at', j
+         WRITE(*,*) 'Density = ', rho2_a
+         WRITE(*,*) 'Temp = ', temp2(j,1)
+         WRITE(*,*) 'Ye = ', ye2(j,1)
+         EXIT
+
+      ENDIF
+   ENDDO
+   CLOSE(100)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   WRITE(*,*) 'Check the initial xiso'
+   CALL checkxisotope
+   WRITE(*,*) 'Finished checking the initial xiso'
+   WRITE(*,*)
+
+   WRITE(*,*) 'Find the atmosphere AZbar'
+   CALL private_helmeos_azbar(xiso_a, abar_ini, zbar_ini, ye2_ini)
+   WRITE(*,*) 'Finished finding the initial AZbar'
+   WRITE(*,*)
+
+   DO i = j+1, length_step_r, 1
+      rho2(i,:) = rho2_a
+      ye2(i,:) = ye_a
+      temp2(i,:) = temp_a
+      xiso(j,k,:) = xiso_a
+   ENDDO
+
+   ! Assume constant composition first      
+   WRITE(*,*) 'FInd the initial AZBar'
+   CALL Find_AZbar 
+   WRITE(*,*) 'Finished finding the initial AZbar'
+   WRITE(*,*)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Set up initial burnphi
+   IF(burn_prog_flag == 1) THEN
+
+      DO k = 1, length_step_z+4, 1 
+         DO j = 1, length_step_r+4, 1
+
+            burn_phi1(j,k) = 0.0D0
+            burn_phi2(j,k) = 0.0D0
+            burn_phi3(j,k) = 0.0D0
+            yiso(j,k) = 1.0D0 / abar2(j,k)
+            qash(j,k) = 9.06265D-3
+
+            ! Set to NSE composition accordinly?
+
+         ENDDO
+      ENDDO
+
+      yiso_a = 1.0D0 / abar_ini           
+      qash_a = 9.06265D-3
+
+   ENDIF
+ 
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Final process
+
+   WRITE(*,*) 'Find epsilon'
+   CALL getepsilon
+   WRITE(*,*) 'Finished finding epsilon'
+   WRITE(*,*)
+
+   WRITE(*,*) 'Check density'
+   IF(checkrho_flag == 1) CALL CHECKRHO
+   WRITE(*,*) 'Finished checking density'
+   WRITE(*,*)
+
+   WRITE(*,*) 'Find initial mass'
+   CALL FINDMASS
+   WRITE(*,*) 'Finished finding initial mass'
+   WRITE(*,*)
+
+   CALL BACKUP_REF_ARRAY        ! Important for the first temp search
+
+   ! At last set all grid to be burn_ratio == 1
+   ! such that immediate NSE conversion can be 
+   ! carried out for the grids > 5 BK
+   IF(flame_flag == 1) THEN
+      WRITE(*,*) 'Adjust burnratio...'
+      burn_ratio(:,:) = 1.0D0
+      nse_flag(:,:) = 2
+      WRITE(*,*) burn_ratio(1,1)
+   ENDIF
+
+   temp2_old(:,:) = temp2(:,:)
+  
+   WRITE(*,*) 'Finished reading the initial profile'
+   WRITE(*,*)
+
+   output_profiletime = jet_time / 1.0D1
+   output_flametime = jet_time / 1.0D1                                                                 
+   output_turbtime = jet_time / 1.0D1                                                
+   output_Helmtime = jet_time / 1.0D1
+
+ELSE
+
+STOP 'Wrong input of read_oldfile_flag (either 0, 1 or 2)'
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This section for reading files from MESA
+
+ELSEIF(read_oldfile_flag == 1) THEN
+
+   WRITE(*,*) 'Read from the saved files'
+
+   ! Read from the old files
+   ! Set up the file to be read
+   ! You need to modify fileno_ini to get to the right 
+   ! (Lightpost) Step 3: Set the fileno_ini to the file I want to read
+   fileno_ini = restart_fileno
+   fileno_ini2 = restart_fileno2
+   write(fileno,*) fileno_ini
+   fileno = ADJUSTL(fileno)
+   fileno_len = LEN_TRIM(fileno)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   rho1_a = restart_rho1_a   !Set the coefficient to get pure DM
+   rho2_a = restart_rho2_a    !Set the coefficient to get pure NM
+
+   ! Set DM if no DM data is available               
+   rho1(:,:) = rho1_a
+   vel1_r(:,:) = vel1_a
+   vel1_z(:,:) = vel1_a
+   vel1_p(:,:) = vel1_a
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read in NM density and initial setting
+   WRITE(*,*) 'Read DM density'
+   open(unit=401, file='Star_WENO_Density_NM_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) n, global_time
+   READ(401,*)             
+   !READ(401,*) length_step_r, length_step_z
+   READ(401,*) dx, dt
+   rho2(:,:) = rho2_a
+
+   DO k = 1, length_step_z
+      READ(401,*) (rho2(j,k), j=1, length_step_r)
+   ENDDO
+   CLOSE(401)
+   CALL boundary1D_NM(rho2, even)
+
+   n = n + 1
+
+   !rho2_a = MIN(1.0D-4 * rho2(1,401), rho2_a)         
+   CALL GETGRID
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !****************************************************************!
+   ! Must change according to the explosion results 		    !
+   ! (Lightpost) Step 4: Set the found_deton_flag and found_deton...!
+   !****************************************************************!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
+   movinggrid_flag = restart_movinggrid_flag
+   checkstepnm_flag = restart_checkstep_flag
+
+   found_deton_flag = restart_found_deton_flag
+   found_deton_time = restart_found_deton_time
+
+   WRITE(*,*)
+   WRITE(*,*) 'Reset movinggrid_flag =', restart_movinggrid_flag
+   WRITE(*,*) 'Reset checkstep_flag =', restart_checkstep_flag
+   WRITE(*,*) 'Reset found_deton_flag =', restart_found_deton_flag
+   WRITE(*,*) 'Reset found_deton_time =', restart_found_deton_time
+
+
+   IF(found_deton_flag == 1) THEN
+      output_profiletime = 0.5D4
+      output_flametime = 0.5D4   
+      output_turbtime = 0.5D4 
+      output_Helmtime = 0.5D4
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read in DM velocity
+   ! Usual no DM motion is assumed
+   !write(*,*) 'Read DM vel-r'
+   !open(unit=401, file='Star_WENO_Velocity_DM_r_'//fileno(1:fileno_len)//'.dat', action='read')
+   !read(401,*) dummy, dummy     
+   !read(401,*) length_step_r_part, length_step_z_part
+   !read(401,*) dummy   
+   !vel1_r(:,:) = vel1_a
+   !do k = length_step_z_part, 1, -1
+   !   read(401,*) (vel1_r(j,k), j=1, length_step_r_part)
+   !enddo
+   !close(401)
+   !call boundary1D_DM(vel1_r, oddR)
+   !
+   !write(*,*) 'Read NM velocity z'
+   !open(unit=401, file='Star_WENO_Velocity_DM_z_'//fileno(1:fileno_len)//'.dat', action='read')
+   !read(401,*) dummy, dummy     
+   !read(401,*) length_step_r_part, length_step_z_part
+   !read(401,*) dummy   
+   !vel1_z(:,:) = vel1_a
+   !do k = length_step_z_part, 1, -1
+   !   read(401,*) (vel1_z(j,k), j=1, length_step_r_part)
+   !enddo
+   !close(401)
+   !call boundary1D_DM(vel1_z, oddZ)
+   !
+   !write(*,*) 'Read NM velocity p'
+   !open(unit=401, file='Star_WENO_Velocity_DM_p_'//fileno(1:fileno_len)//'.dat', action='read')
+   !read(401,*) dummy, dummy     
+   !read(401,*) length_step_r_part, length_step_z_part
+   !read(401,*) dummy   
+   !vel1_p(:,:) = vel1_a
+   !do k = length_step_z_part, 1, -1
+   !   read(401,*) (vel1_p(j,k), j=1, length_step_r_part)
+   !enddo
+   !close(401)
+   !call boundary1D_DM(vel1_p, oddR)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Now read in the NM hydro   
+
+   write(*,*) 'Read NM velocity r'
+   open(unit=401, file='Star_WENO_Velocity_NM_r_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   vel2_r(:,:) = vel2_a
+   do k = 1, length_step_z
+      read(401,*) (vel2_r(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(vel2_r, oddR)
+
+   write(*,*) 'Read NM velocity z'
+   open(unit=401, file='Star_WENO_Velocity_NM_z_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*)
+   READ(401,*) 
+   vel2_z(:,:) = vel2_a
+   do k = 1, length_step_z
+      read(401,*) (vel2_z(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(vel2_z, oddZ)
+
+   write(*,*) 'Read NM velocity p'
+   open(unit=401, file='Star_WENO_Velocity_NM_p_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*)
+   vel2_p(:,:) = vel2_a
+   do k = 1, length_step_z
+      read(401,*) (vel2_p(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(vel2_p, oddR)
+
+   write(*,*) 'Read temperature'
+   open(unit=401, file='Star_WENO_Temperature_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*)
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   temp2(:,:) = temp_a
+   do k = 1, length_step_z
+      read(401,*) (temp2(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(temp2, even)
+   ! Must backup temperature for temperature finder
+   temp2_old(:,:) = temp2(:,:)
+ 
+   write(*,*) 'Read electron fraction'
+   open(unit=401, file='Star_WENO_Ye2_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*)
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   ye2(:,:) = ye_a
+   do k = 1, length_step_z
+      read(401,*) (Ye2(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(ye2, even)
+
+   write(*,*) 'Read potential'
+   open(unit=401, file='Star_WENO_Potential_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   do k = 1, length_step_z
+      read(401,*) (phi(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_FULL(phi, even)
+
+   potential_flag = 1
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Now read the PPT
+   ! Remember to change the fileno here
+ 
+   ! For individual file
+   if(tracer_flag == 1) then 
+
+      write(fileno,*) fileno_ini2
+      fileno = ADJUSTL(fileno)
+      fileno_len = LEN_TRIM(fileno)
+
+      open(unit=401, file='Star_WENO_PPT_'//fileno(1:fileno_len)//'.dat', action='read')
+      read(401,*) dummy, dummy
+      read(401,*) flag_end
+      do j = 1, nop, 1
+         read(401,*) dummy, rho_p(j), temp_p(j), pos_p(j,1), pos_p(j,2), vel_p(j,1), vel_p(j,2), leavebox_p(j)
+      enddo          
+
+   endif
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the chemical composition
+
+   write(fileno,*) fileno_ini
+   fileno = ADJUSTL(fileno)
+   fileno_len = LEN_TRIM(fileno)
+
+   if(totalion /= 7) stop 'Need to fix the file reader in Initial'
+
+   if(helmeos_flag == 1) then
+
+      xiso_a = 0.0D0
+
+      xiso_a(che4) = restart_xiso_he4
+      xiso_a(cc12) = restart_xiso_c12
+      xiso_a(co16) = restart_xiso_o16
+
+      WRITE(*,*) 'Initial atm isotope'
+      WRITE(*,*) xiso_a
+
+      CALL private_helmeos_azbar(xiso_a, abar_ini, zbar_ini, ye2_ini)
+      DO k = 1, length_step_z, 1
+         DO j = 1, length_step_r , 1
+            xiso(j,k,:) = xiso_a
+   	 ENDDO
+      ENDDO   
+
+      abar2(:,:) = abar_ini
+      zbar2(:,:) = zbar_ini
+
+      WRITE(*,*) 'Read He4'
+      OPEN(unit=401, file='Star_WENO_XHe4_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,che4), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)                 
+
+      WRITE(*,*) 'Read C12'  
+      OPEN(unit=401, file='Star_WENO_XC12_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cc12), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read O16'
+      OPEN(unit=401, file='Star_WENO_XO16_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,co16), j=1, length_step_r)
+      ENDDO
+      close(401)
+
+      WRITE(*,*) 'Read Ne20'
+      OPEN(unit=401, file='Star_WENO_XNe20_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*)
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cne20), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read Mg24'
+      OPEN(unit=401, file='Star_WENO_XMg24_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cmg24), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read Si28'
+      OPEN(unit=401, file='Star_WENO_XSi28_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*)
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,csi28), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read Ni56'
+      OPEN(unit=401, file='Star_WENO_XNi56_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cni56), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      CALL boundary2D_X
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the SGS turbulence
+
+   IF(turb_flag == 1) THEN
+
+      write(*,*) 'Read TurbQ'        
+      OPEN(unit=401, file='Star_WENO_TurbQ_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*)
+      turb_q(:,:) = turb_q_a
+      DO k = 1, length_step_z
+         read(401,*) (turb_q(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(turb_q, even)
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the deflagration level set and derived quantities
+
+   IF(global_time < 3.0D5) THEN
+
+   IF(flame_flag == 1) THEN
+
+      WRITE(*,*) 'Read Flame'
+      OPEN(unit=401, file='Star_WENO_scaG_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      scaG(:,:) = -1.0D0
+      DO k = 1, length_step_z
+         read(401,*) (scaG(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(scaG, even)
+
+      WRITE(*,*) 'Read FlameRatio'
+      OPEN(unit=401, file='Star_WENO_FlameRatio_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      flame_ratio(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (flame_ratio(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(flame_ratio, even)
+
+      WRITE(*,*) 'Read Flame Ratio Old'
+      OPEN(unit=401, file='Star_WENO_FlameRatioOld_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      flame_ratio_old(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (flame_ratio_old(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(flame_ratio_old, even)
+
+      CALL reinitialization2()               !You need this for aspherical initial flame
+      CALL identify_flamegrid()
+      CALL compute_flameratio()
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the detonation level set and derived quantities
+   
+   IF(deton_flag == 1) THEN
+
+      WRITE(*,*) 'Read Flame'
+      OPEN(unit=401, file='Star_WENO_scaG2_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      scaG2(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (scaG2(j,k), j=1, length_step_r)        
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(scaG2, even)
+
+      WRITE(*,*) 'Read DetonRatio'
+      OPEN(unit=401, file='Star_WENO_DetonRatio_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      deton_ratio(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (deton_ratio(j,k), j=1, length_step_r)
+      ENDDO            
+      CLOSE(401)
+      CALL boundary1D_NM(deton_ratio, even)
+
+      write(*,*) 'Read Deton Ratio Old'
+      OPEN(unit=401, file='Star_WENO_DetonRatioOld_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      deton_ratio_old(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (deton_ratio_old(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(deton_ratio_old, even)
+
+      CALL reinitialization3()               !You need this for aspherical initial flame
+      CALL identify_detongrid()
+      CALL compute_detonratio()   
+
+   ENDIF
+
+   ELSE
+
+   fusion_flag = 0
+   scaG(:,:) = 0.0D0
+   scaG2(:,:) = 0.0D0
+
+   flame_ratio(:,:) = 0.0D0
+   flame_ratio_old(:,:) = 0.0D0
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Find Abar and Zbar
+
+   if(xisotran_flag == 1) call find_azbar
+   if(burn_prog_flag == 1) CALL find_AZBAR_fromBPhi()
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Final stage
+   ! Find initial epsilon
+   write(*,*) 'Find epsilon'
+   call getepsilon
+
+   ! Check if the density profile is okay
+   if(checkrho_flag == 1) CALL CHECKRHO
+
+   ! Find mass for the potential 
+   CALL FINDMASS
+
+   ! Backup the array 
+   call BACKUP_REF_ARRAY        ! Important for the first temp search
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Flame ini
+
+   ! Delete the old flame and assign new flame
+   !if(override_flame_flag == 1) CALL GETFLAME(1)
+
+   ! Inject the deflagration energy
+   ! Note: Can switch to detonation accordingly
+   !if(override_flame_flag == 1) CALL FLAME_INI
+
+   ! Find the corresponding temperature
+   if(helmeos_flag == 1) CALL FINDHELMTEMP
+   !if(nuceos_flag == 1) call findnuctemp
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Update the local output time
+   output_logtime_last = global_time
+   output_profiletime_last = global_time
+
+   if(flame_flag == 1) output_flametime_last = global_time
+   if(turb_flag == 1) output_turbtime_last = global_time
+   if(helmeos_flag == 1) output_helmtime_last = global_time
+   if(tracer_flag == 1) output_PPTtime_last = global_time
+   
+   ! Set up the initial reduced array
+   ! Muted because of the general treatment
+   !length_step_r_part = length_step_r
+   !length_step_z_part = length_step_z
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   WRITE(*,*) 'Finished reading profiles ', restart_fileno
+   WRITE(*,*) 'Finished reading profiles ', restart_fileno2
+   WRITE(*,*) 
+   WRITE(*,*) 'Restart data'
+   WRITE(*,*) 'Step number = ', n
+   WRITE(*,*) 'Global time =', global_time
+   WRITE(*,*) 'dx = ', dx
+   WRITE(*,*) 'dt = ', dt
+   WRITE(*,*)
+   WRITE(*,*) 'Finished reading the saved file'
+   WRITE(*,*)
+
+ELSEIF(read_oldfile_flag == 2) THEN
+
+   ! This reads the main-sequence star file running from
+   ! stellar evolution code
+
+   WRITE(*,*) 'Read the initial profile'
+
+   n = 1
+   fileno_ini = -1
+   fileno_ini2 = -1
+
+   rho1_a = 1.0D-13    !Set the coefficient to get pure DM
+   rho2_a = 1.0D-17
+
+   rho1(:,:) = rho1_a
+   vel1_r(:,:) = 0.0D0
+   vel1_z(:,:) = 0.0D0
+   vel1_p(:,:) = 0.0D0
+
+   rho2(:,:) = rho2_a   
+   vel2_r(:,:) = vel2_a
+   vel2_z(:,:) = vel2_a
+   vel2_p(:,:) = vel2_a   
+
+   temp2(:,:) = temp_a
+   ye2(:,:) = 0.5D0
+
+   !xiso_a = 0.0D0               
+   !xiso_a(che4) = xhe4_ini
+   !xiso_a(cc12) = xc12_ini
+   !xiso_a(co16) = xo16_ini
+
+   !xiso_a = 0.0D0
+   !xiso_a(cc12) = 1.0D0
+
+   vel2_r(:,:) = vel2_a
+   vel2_z(:,:) = vel2_a
+   vel2_p(:,:) = vel2_a
+   temp2(:,:) = temp_a
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   OPEN(UNIT=100, FILE='input_file.dat', ACTION='read')
+   DO j = 1, length_step_r, 1
+
+      ! Read the source file
+      READ(100,*) (data_in(i), i=1,15)
+
+      ! Distribute the data accordingly
+      rho2(j,:) = data_in(3) / 6.171D17 
+      temp2(j,:) = data_in(4) / 1.0D9 
+      ye2(j,:) = data_in(5)  
+      vel2_r(j,:) = data_in(6) / 3.0D10 
+      m_r(j) = data_in(7)
+      phi(j,:) = data_in(8)
+      xiso(j,:,che4) = data_in(9)
+      xiso(j,:,cc12) = data_in(10)
+      xiso(j,:,co16) = data_in(11)
+      xiso(j,:,cne20) = data_in(12)
+      xiso(j,:,cmg24) = data_in(13)
+      xiso(j,:,csi28) = data_in(14)
+      xiso(j,:,cni56) = data_in(15)
+
+      ! Search for the atmosphere
+      !IF(rho2(j,1) < 1.0D-17) THEN
+      IF(xiso(j,1,che4) > 0.99D0) THEN
+
+         rho2_a = rho2(j,1)
+         temp_a = temp2(j,1)
+         ye_a = ye2(j,1)
+         xiso_a(:) = xiso(j,1,:)
+
+	 ! Report the search
+         WRITE(*,*) 'Reach the of carbon core at', j
+         WRITE(*,*) 'Density = ', rho2_a
+         WRITE(*,*) 'Temp = ', temp2(j,1)
+         WRITE(*,*) 'Ye = ', ye2(j,1)
+         EXIT
+
+      ENDIF
+   ENDDO
+   CLOSE(100)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   WRITE(*,*) 'Check the initial xiso'
+   CALL checkxisotope
+   WRITE(*,*) 'Finished checking the initial xiso'
+   WRITE(*,*)
+
+   WRITE(*,*) 'Find the atmosphere AZbar'
+   CALL private_helmeos_azbar(xiso_a, abar_ini, zbar_ini, ye2_ini)
+   WRITE(*,*) 'Finished finding the initial AZbar'
+   WRITE(*,*)
+
+   DO i = j+1, length_step_r, 1
+      rho2(i,:) = rho2_a
+      ye2(i,:) = ye_a
+      temp2(i,:) = temp_a
+      xiso(j,k,:) = xiso_a
+   ENDDO
+
+   ! Assume constant composition first      
+   WRITE(*,*) 'FInd the initial AZBar'
+   CALL Find_AZbar 
+   WRITE(*,*) 'Finished finding the initial AZbar'
+   WRITE(*,*)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Set up initial burnphi
+   IF(burn_prog_flag == 1) THEN
+
+      DO k = 1, length_step_z+4, 1 
+         DO j = 1, length_step_r+4, 1
+
+            burn_phi1(j,k) = 0.0D0
+            burn_phi2(j,k) = 0.0D0
+            burn_phi3(j,k) = 0.0D0
+            yiso(j,k) = 1.0D0 / abar2(j,k)
+            qash(j,k) = 9.06265D-3
+
+            ! Set to NSE composition accordinly?
+
+         ENDDO
+      ENDDO
+
+      yiso_a = 1.0D0 / abar_ini           
+      qash_a = 9.06265D-3
+
+   ENDIF
+ 
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Final process
+
+   WRITE(*,*) 'Find epsilon'
+   CALL getepsilon
+   WRITE(*,*) 'Finished finding epsilon'
+   WRITE(*,*)
+
+   WRITE(*,*) 'Check density'
+   IF(checkrho_flag == 1) CALL CHECKRHO
+   WRITE(*,*) 'Finished checking density'
+   WRITE(*,*)
+
+   WRITE(*,*) 'Find initial mass'
+   CALL FINDMASS
+   WRITE(*,*) 'Finished finding initial mass'
+   WRITE(*,*)
+
+   CALL BACKUP_REF_ARRAY        ! Important for the first temp search
+
+   ! At last set all grid to be burn_ratio == 1
+   ! such that immediate NSE conversion can be 
+   ! carried out for the grids > 5 BK
+   IF(flame_flag == 1) THEN
+      WRITE(*,*) 'Adjust burnratio...'
+      burn_ratio(:,:) = 1.0D0
+      nse_flag(:,:) = 2
+      WRITE(*,*) burn_ratio(1,1)
+   ENDIF
+
+   temp2_old(:,:) = temp2(:,:)
+  
+   WRITE(*,*) 'Finished reading the initial profile'
+   WRITE(*,*)
+
+   output_profiletime = jet_time / 1.0D1
+   output_flametime = jet_time / 1.0D1                                                                 
+   output_turbtime = jet_time / 1.0D1                                                
+   output_Helmtime = jet_time / 1.0D1
+
+ELSE
+
+STOP 'Wrong input of read_oldfile_flag (either 0, 1 or 2)'
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This section for reading files from MESA
+
+ELSEIF(read_oldfile_flag == 1) THEN
+
+   WRITE(*,*) 'Read from the saved files'
+
+   ! Read from the old files
+   ! Set up the file to be read
+   ! You need to modify fileno_ini to get to the right 
+   ! (Lightpost) Step 3: Set the fileno_ini to the file I want to read
+   fileno_ini = restart_fileno
+   fileno_ini2 = restart_fileno2
+   write(fileno,*) fileno_ini
+   fileno = ADJUSTL(fileno)
+   fileno_len = LEN_TRIM(fileno)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   rho1_a = restart_rho1_a   !Set the coefficient to get pure DM
+   rho2_a = restart_rho2_a    !Set the coefficient to get pure NM
+
+   ! Set DM if no DM data is available               
+   rho1(:,:) = rho1_a
+   vel1_r(:,:) = vel1_a
+   vel1_z(:,:) = vel1_a
+   vel1_p(:,:) = vel1_a
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read in NM density and initial setting
+   WRITE(*,*) 'Read DM density'
+   open(unit=401, file='Star_WENO_Density_NM_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) n, global_time
+   READ(401,*)             
+   !READ(401,*) length_step_r, length_step_z
+   READ(401,*) dx, dt
+   rho2(:,:) = rho2_a
+
+   DO k = 1, length_step_z
+      READ(401,*) (rho2(j,k), j=1, length_step_r)
+   ENDDO
+   CLOSE(401)
+   CALL boundary1D_NM(rho2, even)
+
+   n = n + 1
+
+   !rho2_a = MIN(1.0D-4 * rho2(1,401), rho2_a)         
+   CALL GETGRID
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !****************************************************************!
+   ! Must change according to the explosion results 		    !
+   ! (Lightpost) Step 4: Set the found_deton_flag and found_deton...!
+   !****************************************************************!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
+   movinggrid_flag = restart_movinggrid_flag
+   checkstepnm_flag = restart_checkstep_flag
+
+   found_deton_flag = restart_found_deton_flag
+   found_deton_time = restart_found_deton_time
+
+   WRITE(*,*)
+   WRITE(*,*) 'Reset movinggrid_flag =', restart_movinggrid_flag
+   WRITE(*,*) 'Reset checkstep_flag =', restart_checkstep_flag
+   WRITE(*,*) 'Reset found_deton_flag =', restart_found_deton_flag
+   WRITE(*,*) 'Reset found_deton_time =', restart_found_deton_time
+
+
+   IF(found_deton_flag == 1) THEN
+      output_profiletime = 0.5D4
+      output_flametime = 0.5D4   
+      output_turbtime = 0.5D4 
+      output_Helmtime = 0.5D4
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read in DM velocity
+   ! Usual no DM motion is assumed
+   !write(*,*) 'Read DM vel-r'
+   !open(unit=401, file='Star_WENO_Velocity_DM_r_'//fileno(1:fileno_len)//'.dat', action='read')
+   !read(401,*) dummy, dummy     
+   !read(401,*) length_step_r_part, length_step_z_part
+   !read(401,*) dummy   
+   !vel1_r(:,:) = vel1_a
+   !do k = length_step_z_part, 1, -1
+   !   read(401,*) (vel1_r(j,k), j=1, length_step_r_part)
+   !enddo
+   !close(401)
+   !call boundary1D_DM(vel1_r, oddR)
+   !
+   !write(*,*) 'Read NM velocity z'
+   !open(unit=401, file='Star_WENO_Velocity_DM_z_'//fileno(1:fileno_len)//'.dat', action='read')
+   !read(401,*) dummy, dummy     
+   !read(401,*) length_step_r_part, length_step_z_part
+   !read(401,*) dummy   
+   !vel1_z(:,:) = vel1_a
+   !do k = length_step_z_part, 1, -1
+   !   read(401,*) (vel1_z(j,k), j=1, length_step_r_part)
+   !enddo
+   !close(401)
+   !call boundary1D_DM(vel1_z, oddZ)
+   !
+   !write(*,*) 'Read NM velocity p'
+   !open(unit=401, file='Star_WENO_Velocity_DM_p_'//fileno(1:fileno_len)//'.dat', action='read')
+   !read(401,*) dummy, dummy     
+   !read(401,*) length_step_r_part, length_step_z_part
+   !read(401,*) dummy   
+   !vel1_p(:,:) = vel1_a
+   !do k = length_step_z_part, 1, -1
+   !   read(401,*) (vel1_p(j,k), j=1, length_step_r_part)
+   !enddo
+   !close(401)
+   !call boundary1D_DM(vel1_p, oddR)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Now read in the NM hydro   
+
+   write(*,*) 'Read NM velocity r'
+   open(unit=401, file='Star_WENO_Velocity_NM_r_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   vel2_r(:,:) = vel2_a
+   do k = 1, length_step_z
+      read(401,*) (vel2_r(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(vel2_r, oddR)
+
+   write(*,*) 'Read NM velocity z'
+   open(unit=401, file='Star_WENO_Velocity_NM_z_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*)
+   READ(401,*) 
+   vel2_z(:,:) = vel2_a
+   do k = 1, length_step_z
+      read(401,*) (vel2_z(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(vel2_z, oddZ)
+
+   write(*,*) 'Read NM velocity p'
+   open(unit=401, file='Star_WENO_Velocity_NM_p_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*)
+   vel2_p(:,:) = vel2_a
+   do k = 1, length_step_z
+      read(401,*) (vel2_p(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(vel2_p, oddR)
+
+   write(*,*) 'Read temperature'
+   open(unit=401, file='Star_WENO_Temperature_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*)
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   temp2(:,:) = temp_a
+   do k = 1, length_step_z
+      read(401,*) (temp2(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(temp2, even)
+   ! Must backup temperature for temperature finder
+   temp2_old(:,:) = temp2(:,:)
+ 
+   write(*,*) 'Read electron fraction'
+   open(unit=401, file='Star_WENO_Ye2_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*)
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   ye2(:,:) = ye_a
+   do k = 1, length_step_z
+      read(401,*) (Ye2(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_NM(ye2, even)
+
+   write(*,*) 'Read potential'
+   open(unit=401, file='Star_WENO_Potential_'//fileno(1:fileno_len)//'.dat', action='read')
+   READ(401,*) 
+   READ(401,*)
+   READ(401,*) 
+   READ(401,*) 
+   do k = 1, length_step_z
+      read(401,*) (phi(j,k), j=1, length_step_r)
+   enddo
+   close(401)
+   call boundary1D_FULL(phi, even)
+
+   potential_flag = 1
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Now read the PPT
+   ! Remember to change the fileno here
+ 
+   ! For individual file
+   if(tracer_flag == 1) then 
+
+      write(fileno,*) fileno_ini2
+      fileno = ADJUSTL(fileno)
+      fileno_len = LEN_TRIM(fileno)
+
+      open(unit=401, file='Star_WENO_PPT_'//fileno(1:fileno_len)//'.dat', action='read')
+      read(401,*) dummy, dummy
+      read(401,*) flag_end
+      do j = 1, nop, 1
+         read(401,*) dummy, rho_p(j), temp_p(j), pos_p(j,1), pos_p(j,2), vel_p(j,1), vel_p(j,2), leavebox_p(j)
+      enddo          
+
+   endif
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the chemical composition
+
+   write(fileno,*) fileno_ini
+   fileno = ADJUSTL(fileno)
+   fileno_len = LEN_TRIM(fileno)
+
+   if(totalion /= 7) stop 'Need to fix the file reader in Initial'
+
+   if(helmeos_flag == 1) then
+
+      xiso_a = 0.0D0
+
+      xiso_a(che4) = restart_xiso_he4
+      xiso_a(cc12) = restart_xiso_c12
+      xiso_a(co16) = restart_xiso_o16
+
+      WRITE(*,*) 'Initial atm isotope'
+      WRITE(*,*) xiso_a
+
+      CALL private_helmeos_azbar(xiso_a, abar_ini, zbar_ini, ye2_ini)
+      DO k = 1, length_step_z, 1
+         DO j = 1, length_step_r , 1
+            xiso(j,k,:) = xiso_a
+   	 ENDDO
+      ENDDO   
+
+      abar2(:,:) = abar_ini
+      zbar2(:,:) = zbar_ini
+
+      WRITE(*,*) 'Read He4'
+      OPEN(unit=401, file='Star_WENO_XHe4_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,che4), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)                 
+
+      WRITE(*,*) 'Read C12'  
+      OPEN(unit=401, file='Star_WENO_XC12_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cc12), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read O16'
+      OPEN(unit=401, file='Star_WENO_XO16_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,co16), j=1, length_step_r)
+      ENDDO
+      close(401)
+
+      WRITE(*,*) 'Read Ne20'
+      OPEN(unit=401, file='Star_WENO_XNe20_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*)
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cne20), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read Mg24'
+      OPEN(unit=401, file='Star_WENO_XMg24_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cmg24), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read Si28'
+      OPEN(unit=401, file='Star_WENO_XSi28_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*)
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,csi28), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      WRITE(*,*) 'Read Ni56'
+      OPEN(unit=401, file='Star_WENO_XNi56_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*) 
+      DO k = 1, length_step_z
+         READ(401,*) (xiso(j,k,cni56), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+
+      CALL boundary2D_X
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the SGS turbulence
+
+   IF(turb_flag == 1) THEN
+
+      write(*,*) 'Read TurbQ'        
+      OPEN(unit=401, file='Star_WENO_TurbQ_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) 
+      READ(401,*)
+      READ(401,*) 
+      READ(401,*)
+      turb_q(:,:) = turb_q_a
+      DO k = 1, length_step_z
+         read(401,*) (turb_q(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(turb_q, even)
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the deflagration level set and derived quantities
+
+   IF(global_time < 3.0D5) THEN
+
+   IF(flame_flag == 1) THEN
+
+      WRITE(*,*) 'Read Flame'
+      OPEN(unit=401, file='Star_WENO_scaG_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      scaG(:,:) = -1.0D0
+      DO k = 1, length_step_z
+         read(401,*) (scaG(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(scaG, even)
+
+      WRITE(*,*) 'Read FlameRatio'
+      OPEN(unit=401, file='Star_WENO_FlameRatio_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      flame_ratio(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (flame_ratio(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(flame_ratio, even)
+
+      WRITE(*,*) 'Read Flame Ratio Old'
+      OPEN(unit=401, file='Star_WENO_FlameRatioOld_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      flame_ratio_old(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (flame_ratio_old(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(flame_ratio_old, even)
+
+      CALL reinitialization2()               !You need this for aspherical initial flame
+      CALL identify_flamegrid()
+      CALL compute_flameratio()
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Read the detonation level set and derived quantities
+   
+   IF(deton_flag == 1) THEN
+
+      WRITE(*,*) 'Read Flame'
+      OPEN(unit=401, file='Star_WENO_scaG2_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      scaG2(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (scaG2(j,k), j=1, length_step_r)        
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(scaG2, even)
+
+      WRITE(*,*) 'Read DetonRatio'
+      OPEN(unit=401, file='Star_WENO_DetonRatio_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      deton_ratio(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (deton_ratio(j,k), j=1, length_step_r)
+      ENDDO            
+      CLOSE(401)
+      CALL boundary1D_NM(deton_ratio, even)
+
+      write(*,*) 'Read Deton Ratio Old'
+      OPEN(unit=401, file='Star_WENO_DetonRatioOld_'//fileno(1:fileno_len)//'.dat', action='read')
+      READ(401,*) n, global_time
+      READ(401,*)
+      !READ(401,*) length_step_r, length_step_z
+      READ(401,*) dx, dt
+      deton_ratio_old(:,:) = 0.0D0
+      DO k = 1, length_step_z
+         READ(401,*) (deton_ratio_old(j,k), j=1, length_step_r)
+      ENDDO
+      CLOSE(401)
+      CALL boundary1D_NM(deton_ratio_old, even)
+
+      CALL reinitialization3()               !You need this for aspherical initial flame
+      CALL identify_detongrid()
+      CALL compute_detonratio()   
+
+   ENDIF
+
+   ELSE
+
+   fusion_flag = 0
+   scaG(:,:) = 0.0D0
+   scaG2(:,:) = 0.0D0
+
+   flame_ratio(:,:) = 0.0D0
+   flame_ratio_old(:,:) = 0.0D0
+
+   ENDIF
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Find Abar and Zbar
+
+   if(xisotran_flag == 1) call find_azbar
+   if(burn_prog_flag == 1) CALL find_AZBAR_fromBPhi()
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Final stage
+   ! Find initial epsilon
+   write(*,*) 'Find epsilon'
+   call getepsilon
+
+   ! Check if the density profile is okay
+   if(checkrho_flag == 1) CALL CHECKRHO
+
+   ! Find mass for the potential 
+   CALL FINDMASS
+
+   ! Backup the array 
+   call BACKUP_REF_ARRAY        ! Important for the first temp search
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Flame ini
+
+   ! Delete the old flame and assign new flame
+   !if(override_flame_flag == 1) CALL GETFLAME(1)
+
+   ! Inject the deflagration energy
+   ! Note: Can switch to detonation accordingly
+   !if(override_flame_flag == 1) CALL FLAME_INI
+
+   ! Find the corresponding temperature
+   if(helmeos_flag == 1) CALL FINDHELMTEMP
+   !if(nuceos_flag == 1) call findnuctemp
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Update the local output time
+   output_logtime_last = global_time
+   output_profiletime_last = global_time
+
+   if(flame_flag == 1) output_flametime_last = global_time
+   if(turb_flag == 1) output_turbtime_last = global_time
+   if(helmeos_flag == 1) output_helmtime_last = global_time
+   if(tracer_flag == 1) output_PPTtime_last = global_time
+   
+   ! Set up the initial reduced array
+   ! Muted because of the general treatment
+   !length_step_r_part = length_step_r
+   !length_step_z_part = length_step_z
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   WRITE(*,*) 'Finished reading profiles ', restart_fileno
+   WRITE(*,*) 'Finished reading profiles ', restart_fileno2
+   WRITE(*,*) 
+   WRITE(*,*) 'Restart data'
+   WRITE(*,*) 'Step number = ', n
+   WRITE(*,*) 'Global time =', global_time
+   WRITE(*,*) 'dx = ', dx
+   WRITE(*,*) 'dt = ', dt
+   WRITE(*,*)
+   WRITE(*,*) 'Finished reading the saved file'
+   WRITE(*,*)
+
+ELSEIF(read_oldfile_flag == 2) THEN
+
+   ! This reads the main-sequence star file running from
+   ! stellar evolution code
+
+   WRITE(*,*) 'Read the initial profile'
+
+   n = 1
+   fileno_ini = -1
+   fileno_ini2 = -1
+
+   rho1_a = 1.0D-13    !Set the coefficient to get pure DM
+   rho2_a = 1.0D-17
+
+   rho1(:,:) = rho1_a
+   vel1_r(:,:) = 0.0D0
+   vel1_z(:,:) = 0.0D0
+   vel1_p(:,:) = 0.0D0
+
+   rho2(:,:) = rho2_a   
+   vel2_r(:,:) = vel2_a
+   vel2_z(:,:) = vel2_a
+   vel2_p(:,:) = vel2_a   
+
+   temp2(:,:) = temp_a
+   ye2(:,:) = 0.5D0
+
+   !xiso_a = 0.0D0               
+   !xiso_a(che4) = xhe4_ini
+   !xiso_a(cc12) = xc12_ini
+   !xiso_a(co16) = xo16_ini
+
+   !xiso_a = 0.0D0
+   !xiso_a(cc12) = 1.0D0
+
+   vel2_r(:,:) = vel2_a
+   vel2_z(:,:) = vel2_a
+   vel2_p(:,:) = vel2_a
+   temp2(:,:) = temp_a
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   OPEN(UNIT=100, FILE='input_file.dat', ACTION='read')
+   DO j = 1, length_step_r, 1
+
+      ! Read the source file
+      READ(100,*) (data_in(i), i=1,15)
+
+      ! Distribute the data accordingly
+      rho2(j,:) = data_in(3) / 6.171D17 
+      temp2(j,:) = data_in(4) / 1.0D9 
+      ye2(j,:) = data_in(5)  
+      vel2_r(j,:) = data_in(6) / 3.0D10 
+      m_r(j) = data_in(7)
+      phi(j,:) = data_in(8)
+      xiso(j,:,che4) = data_in(9)
+      xiso(j,:,cc12) = data_in(10)
+      xiso(j,:,co16) = data_in(11)
+      xiso(j,:,cne20) = data_in(12)
+      xiso(j,:,cmg24) = data_in(13)
+      xiso(j,:,csi28) = data_in(14)
+      xiso(j,:,cni56) = data_in(15)
+
+      ! Search for the atmosphere
+      !IF(rho2(j,1) < 1.0D-17) THEN
+      IF(xiso(j,1,che4) > 0.99D0) THEN
+
+         rho2_a = rho2(j,1)
+         temp_a = temp2(j,1)
+         ye_a = ye2(j,1)
+         xiso_a(:) = xiso(j,1,:)
+
+	 ! Report the search
+         WRITE(*,*) 'Reach the of carbon core at', j
+         WRITE(*,*) 'Density = ', rho2_a
+         WRITE(*,*) 'Temp = ', temp2(j,1)
+         WRITE(*,*) 'Ye = ', ye2(j,1)
+         EXIT
+
+      ENDIF
+   ENDDO
+   CLOSE(100)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   WRITE(*,*) 'Check the initial xiso'
+   CALL checkxisotope
+   WRITE(*,*) 'Finished checking the initial xiso'
+   WRITE(*,*)
+
+   WRITE(*,*) 'Find the atmosphere AZbar'
+   CALL private_helmeos_azbar(xiso_a, abar_ini, zbar_ini, ye2_ini)
+   WRITE(*,*) 'Finished finding the initial AZbar'
+   WRITE(*,*)
+
+   DO i = j+1, length_step_r, 1
+      rho2(i,:) = rho2_a
+      ye2(i,:) = ye_a
+      temp2(i,:) = temp_a
+      xiso(j,k,:) = xiso_a
+   ENDDO
+
+   ! Assume constant composition first      
+   WRITE(*,*) 'FInd the initial AZBar'
+   CALL Find_AZbar 
+   WRITE(*,*) 'Finished finding the initial AZbar'
+   WRITE(*,*)
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Set up initial burnphi
+   IF(burn_prog_flag == 1) THEN
+
+      DO k = 1, length_step_z+4, 1 
+         DO j = 1, length_step_r+4, 1
+
+            burn_phi1(j,k) = 0.0D0
+            burn_phi2(j,k) = 0.0D0
+            burn_phi3(j,k) = 0.0D0
+            yiso(j,k) = 1.0D0 / abar2(j,k)
+            qash(j,k) = 9.06265D-3
+
+            ! Set to NSE composition accordinly?
+
+         ENDDO
+      ENDDO
+
+      yiso_a = 1.0D0 / abar_ini           
+      qash_a = 9.06265D-3
+
+   ENDIF
+ 
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Final process
+
+   WRITE(*,*) 'Find epsilon'
+   CALL getepsilon
+   WRITE(*,*) 'Finished finding epsilon'
+   WRITE(*,*)
+
+   WRITE(*,*) 'Check density'
+   IF(checkrho_flag == 1) CALL CHECKRHO
+   WRITE(*,*) 'Finished checking density'
+   WRITE(*,*)
+
+   WRITE(*,*) 'Find initial mass'
+   CALL FINDMASS
+   WRITE(*,*) 'Finished finding initial mass'
+   WRITE(*,*)
+
+   CALL BACKUP_REF_ARRAY        ! Important for the first temp search
+
+   ! At last set all grid to be burn_ratio == 1
+   ! such that immediate NSE conversion can be 
+   ! carried out for the grids > 5 BK
+   IF(flame_flag == 1) THEN
+      WRITE(*,*) 'Adjust burnratio...'
+      burn_ratio(:,:) = 1.0D0
+      nse_flag(:,:) = 2
+      WRITE(*,*) burn_ratio(1,1)
+   ENDIF
+
+   temp2_old(:,:) = temp2(:,:)
+  
+   WRITE(*,*) 'Finished reading the initial profile'
+   WRITE(*,*)
+
+   output_profiletime = jet_time / 1.0D1
+   output_flametime = jet_time / 1.0D1                                                                 
+   output_turbtime = jet_time / 1.0D1                                                
+   output_Helmtime = jet_time / 1.0D1
+
+ELSE
+
+STOP 'Wrong input of read_oldfile_flag (either 0, 1 or 2)'
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

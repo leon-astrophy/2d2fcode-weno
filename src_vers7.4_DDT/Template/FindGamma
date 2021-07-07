@@ -1,0 +1,59 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! This subroutine finds the adiabatic index for helmeos equation of state 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine teos_gamma(rho_in, temp_in, abar_in, zbar_in, gamma_out, gamma_eff_out)
+use definition, only : DP
+implicit none
+include 'vector_eos.dek'
+
+! Input and output !
+real (DP) :: rho_in, temp_in, abar_in, zbar_in
+real (DP) :: gamma_out, gamma_eff_out
+
+jhi_eos = 1
+jlo_eos = 1
+
+den_row(1) = rho_in * 6.171D17
+temp_row(1) = temp_in * 1.0D9
+abar_row(1) = abar_in
+zbar_row(1) = zbar_in
+
+call helmeos
+
+gamma_out = gam2_row(1)
+gamma_eff_out = ptot_row(1) / etot_row(1) / den_row(1) + 1.0D0
+
+end subroutine teos_gamma
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! This subroutine finds the adiabatic index for DM equation of state 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine DMeos_gamma(rho_in, gamma_out)
+use definition    
+implicit none
+
+! Input and output !
+real (DP) :: rho_in, gamma_out
+integer :: row_no        
+real (DP) :: drow_no
+
+row_no = INT((LOG10(rho_in * 6.171D17) - 7.4D0) / 0.01D0)
+drow_no = (LOG10(rho_in * 6.171D17) - 7.4D0) / 0.01D0 - DBLE(row_no)
+
+if(row_no < 0) then
+   row_no = 0
+   drow_no = 0.0D0
+elseif(row_no > eosline1) then
+   row_no = eosline1    
+   drow_no = 0.0D0
+endif
+
+gamma_out = DSQRT((eostable1(2,row_no+1) - eostable1(2,row_no)) / (eostable1(1,row_no+1) - eostable1(1,row_no)))
+
+end subroutine DMeos_gamma

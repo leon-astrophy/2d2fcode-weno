@@ -1,0 +1,160 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! This subroutine reads the initial model prepared by the 
+! rotating initial model
+! Written by Leung Shing Chi in 2016
+!
+! The rotating configuration is more difficult to solve
+! due to its ellipsoidal shape, which requires numerous
+! relaxation to both the density profile and potential
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine getrho_fromfile
+use definition
+use helmeos_module
+implicit none
+
+! Dummy variables
+integer :: i, j, k
+
+! Initial chemical composition
+REAL (DP), DIMENSION (totalion) :: xiso_ini
+
+! Center and atmosphere pressure
+REAL (DP) :: p1_c, p2_c, p1_a, p2_a
+
+! Initial density and pressure
+REAL (DP) :: ini_rho1, ini_rho2, ini_p1, ini_p2
+
+! Dummy variable
+real (DP) :: dummy
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Get the center and atmosphere pressure for DM
+!CALL readeostable_rtop(rho1_c, p1_c, dummy, 1)   !We don't need to find the dp/drho at this stage
+!CALL readeostable_rtop(rho1_a, p1_a, dummy, 1)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Do the same procedure for NM
+if(helmeos_flag == 1) then
+
+   ! For HELMHOLTZ EOS only
+   xiso_ini = 0.0D0
+   xiso_ini(che4) = xhe4_ini1
+   xiso_ini(cc12) = xc12_ini1
+   xiso_ini(co16) = xo16_ini1
+   xiso_a = xiso_ini
+
+   CALL private_helmeos_azbar(xiso_ini, abar_ini, zbar_ini, ye2_ini)
+   CALL HELMEOS_RtoP(rho2_c, temp_ini, abar_ini, zbar_ini, ye2_ini, p2_c, dummy, dummy)
+   CALL HELMEOS_RtoP(rho2_a, temp_ini, abar_ini, zbar_ini, ye2_ini, p2_a, dummy, dummy)
+   !CALL teos_pressure(rho2_c, temp_ini, abar_ini, zbar_ini, ye2_ini, p2_c, dummy, dummy, dummy)
+   !CALL teos_pressure(rho2_a, temp_ini, abar_ini, zbar_ini, ye2_ini, p2_a, dummy, dummy, dummy)
+
+   ye2(:,:) = ye2_ini
+   abar2(:,:) = abar_ini
+   zbar2(:,:) = zbar_ini
+   write(*,*) 'Initial abar, zbar and ye = ', abar_ini, zbar_ini, ye2_ini
+
+else
+
+   ! For EOS table
+   !CALL readeostable_rtop(rho2_c, p2_c, dummy, 2)   !We don't need to find the dp/drho at this stage
+   !CALL readeostable_rtop(rho2_a, p2_a, dummy, 2)            
+
+endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Now read the files
+open(unit=1082, file='rhoDM_input.dat', action='read')
+open(unit=1083, file='rho_input.dat', action='read')
+open(unit=1084, file='phi_input.dat', action='read')
+
+write(*,*) 'Now read the data'
+
+do k = length_step_z, 1, -1
+   read(1082, *) (rho1(j,k), j = 1, length_step_r, 1)
+   read(1083, *) (rho2(j,k), j = 1, length_step_r, 1)
+   read(1084, *) (phi(j,k), j = 1, length_step_r, 1)
+enddo
+
+write(*,*) 'Finished reading'
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+call boundary1D_DM(rho1, even)
+call boundary1D_NM(rho2, even)
+call boundary1D_full(phi, even)
+
+close(1082)
+close(1083)
+close(1084)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Set up a uniform temperature and composition profile
+do k = 1, length_step_z, 1
+   do j = 1, length_step_r, 1
+      temp2(j,k) = temp_ini
+      xiso(j,k,:) = xiso_ini
+      !abar2(j,k) = abar_ini
+      !zbar2(j,k) = zbar_ini
+      ye2(j,k) = ye2_ini
+   enddo
+enddo
+
+call boundary1D_NM(temp2, even)
+call boundary1D_NM(ye2, even)
+call boundary2D_X()
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Switch off the initial guess of phi
+potential_flag = 1
+
+end subroutine getrho_fromfile
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! This subroutine bridges the HELMHOLTZ EOS to convert
+! the pressure to density
+! Written by Leung Shing Chi in 2016
+!
+! The subroutine takes input of pressure, temperature,
+! mean atomic mass, mean atomic number, trial density,
+! and give output for density
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine getPfromRho_helm(p_in, temp_in, abar_in, zbar_in, rho_in, rho_out)
+use definition
+use helmeos_module
+implicit none
+include 'vector_eos.dek'
+
+! Input quantities
+real (DP) :: p_in, temp_in, abar_in, zbar_in, rho_in
+
+! Output quantity
+real (DP) :: rho_out
+
+! Fill the pipe of HELMHOLTZ
+jlo_eos = 1
+jhi_eos = 1
+ptot_row(1) = p_in * 5.5539D38
+temp_row(1) = temp_in * 1.0D9
+abar_row(1) = abar_in           
+zbar_row(1) = zbar_in
+den_row(1)  = rho_in * 6.1710D17
+
+! Call HELMHOLTZ 
+call invert_helm_pt_quiet
+
+! Give the output
+rho_out = den_row(1) / 6.171D17
+
+end subroutine GetPfromRho_helm

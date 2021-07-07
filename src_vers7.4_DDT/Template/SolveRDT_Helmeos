@@ -1,0 +1,420 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! This subroutine convert the conservative variables to primitive variables
+! by iteration (Newton-Rhapson method)
+!
+! Written by Leung Shing Chi in 2016
+! Updated by Leung Shing Chi in 2017
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine solveRDTHelm(j_in, k_in, D_in, Sr_in, Sz_in, T_in, rho_t, vel_r_t, vel_z_t, eps_t, temp_t, &
+                        abar_in, zbar_in, ye_in, rho_out, vel_r_out, vel_z_out, eps_out) 
+use definition
+use helmeos_module
+implicit none
+
+! Integer !
+integer :: j_in, k_in
+
+! Real variables !
+real (DP) :: D_in, Sr_in, Sz_in, T_in
+real (DP) :: rho_t, vel_r_t, vel_z_t, eps_t, temp_t
+real (DP) :: abar_in, zbar_in, ye_in
+real (DP) :: rho_out, vel_r_out, vel_z_out, eps_out
+real (DP) :: rho_old, vel_r_old, vel_z_old, eps_old
+real (DP) :: rho_new, vel_r_new, vel_z_new, eps_new
+real (DP) :: rho_temp, eps_temp
+real (DP) :: drho, deps, dvr, dvz, rat
+real (DP) :: f1, f2, f3, f4
+real (DP) :: df1dr, df1de, df2dr, df2de, df3dvz, df3dvr, df4dvz, df4dvr
+real (DP) :: LorFac, vmag
+real (DP) :: gamma_loc
+real (DP) :: temp_loc
+real (DP) :: p_loc, dpdrho_loc, dpdeps_loc
+real (DP) :: eps_loc_min
+real (DP) :: drho_max, deps_max
+real (DP) :: rho_abs_min, temp_abs_min, eps_abs_min
+
+! Other dummy integer !
+integer :: i, j, flag_notfindtemp
+REAL (DP) :: dummy
+logical :: find_flag
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! First solve the couple system of density and internal energy
+
+!write(*,*) 'IN SolveRDT with ', j_in, k_in, D_in, Sr_in, Sz_in, T_in, rho_t, vel_r_t, vel_z_t, eps_t, temp_t, &
+!                        abar_in, zbar_in, ye_in, rho_out, vel_r_out, vel_z_out, eps_out
+
+find_flag = .false.
+
+if(Sr_in == 0.0D0 .and. Sz_in == 0.0D0) then
+   rho_new = D_in
+   eps_new = T_in / rho_new
+else
+
+find_flag = .true.
+!write(*,101) j_in, k_in, D_in, Sr_in, Sz_in, T_in
+
+! Give a classical solution by solve the Newtonian Conservative <-> Primative variables
+rho_old = rho_t
+vel_r_old = vel_r_t
+vel_z_old = vel_z_t
+eps_old = eps_t
+temp_loc = temp_t
+
+rho_abs_min = 1.0D-2* rho2_a
+temp_abs_min = 1.0D-2 * temp_a
+!call teos_epsilon(rho_abs_min, temp_abs_min, abar_in, zbar_in, ye_in, eps_abs_min)
+call HELMEOS_RtoE(rho_abs_min, temp_abs_min, abar_in, zbar_in, ye_in,eps_abs_min, dummy)
+drho_max = MAX(0.1D0 * rho_t, 0.1D0 * rho_abs_min)
+deps_max = MAX(0.1D0 * eps_t, 0.1D0 * eps_abs_min)
+
+
+!rho_old = D_in
+!vel_r_old = Sr_in / rho_old
+!vel_z_old = Sz_in / rho_old
+!eps_old = T_in / rho_old - 0.5D0 * (vel_r_old**2 + vel_z_old**2)
+
+!write(*,*) j_in, k_in
+!if(j_in == 1 .and. k_in == 1) then
+!   write(*,*) 'Input parameter = ', j_in, k_in, D_in, Sr_in, Sz_in, &
+!                                   T_in, rho_t, vel_r_t, vel_z_t, eps_t, temp_t, &
+!                                   abar_in, zbar_in, ye_in
+!endif
+
+!call teos_epsilon(rho_old, temp_min, abar_in, zbar_in, ye_in, eps_loc_min)
+call HELMEOS_RtoE(rho_old, temp_min, abar_in, zbar_in, ye_in, eps_loc_min, dummy)
+
+do j = 1, 40, 1
+
+   !if((eps_old /= epsilon2_a .and. rho_old /= rho2_a) .or. j == 1) then
+
+   !call teos_gamma(rho_old, temp_loc, abar_in, zbar_in, gamma_loc)  
+   !call teos_pressure(rho_old, temp_loc, abar_in, zbar_in, ye_in, p_loc, dpdrho_loc, dpdeps_loc, flag_notfindtemp) 
+   CALL HELMEOS_RtoP(rho_old, temp_loc, abar_in, zbar_in, ye_in, p_loc, dpdrho_loc, dpdeps_loc)
+
+   !f1 = (1.0D0 + gamma_loc * eps_old)**2 * (D_in**2 - rho_old**2) * D_in**2 / rho_old**2 - (Sr_in**2 + Sz_in**2)
+   !f2 = (1.0D0 + gamma_loc * eps_old) * D_in**2 / rho_old - (gamma_loc - 1.0D0) * rho_old * eps_old - D_in - T_in
+   f1 = (1.0D0 + eps_old + p_loc / rho_old)**2 * (D_in**2 - rho_old**2) * D_in**2 / rho_old**2 - (Sr_in**2 + Sz_in**2)
+   f2 = (1.0D0 + eps_old + p_loc / rho_old) * D_in**2 / rho_old - p_loc - D_in - T_in
+
+   !df1dr = -2.0D0 * (1.0D0 + gamma_loc * eps_old)**2 * D_in ** 4 / rho_old**3
+   !df1de = 2.0D0 * (1.0D0 + gamma_loc * eps_old) * gamma_loc * D_in**2 * (D_in**2 - rho_old**2) / rho_old**2
+   !df2dr = -(1.0D0 + gamma_loc * eps_old) * D_in**2 / rho_old**2 - (gamma_loc - 1.0D0) * eps_old
+   !df2de = gamma_loc * D_in ** 2 / rho_old - (gamma_loc - 1.0D0) * rho_old
+   df1dr = 2.0D0 * (1.0D0 + eps_old + p_loc / rho_old) * (-p_loc / rho_old**2 + dpdrho_loc / rho_old) * (D_in**2 - rho_old**2) * D_in**2 / rho_old**2 + &
+           (1.0D0 + eps_old + p_loc / rho_old)**2 * (-2.0D0 * D_in**2 / rho_old**3) * D_in**2
+   df1de = 2.0D0 * (1.0D0 + eps_old + p_loc / rho_old) * (1.0D0 + dpdeps_loc / rho_old) * (D_in**2 - rho_old**2) * D_in**2 / rho_old**2 
+   df2dr = (dpdrho_loc / rho_old - p_loc / rho_old**2) * D_in**2 / rho_old - &
+           (1.0D0 + eps_old + p_loc / rho_old) * D_in**2 / rho_old**2 - dpdrho_loc 
+   df2de = (1.0D0 + dpdeps_loc / rho_old) * D_in**2 / rho_old - dpdeps_loc
+    
+
+   drho = (df1de * f2 -  df2de * f1) / (df1dr * df2de - df1de * df2dr)
+   deps = (df1dr * f2 -  df2dr * f1) / (df1de * df2dr - df1dr * df2de)
+
+   drho = SIGN(MIN(ABS(drho), drho_max), drho)
+   deps = SIGN(MIN(ABS(deps), deps_max), deps)
+ 
+   !if(j > 20) then
+   !   write(*,"(3I5,10ES15.7)") j_in, k_in, j, rho_old, temp_loc, eps_old, drho, deps, f1, f2
+   !endif
+
+   !if(find_flag == .true. .and. J_in > 1 .and. k_in > 1) then  
+   !if(j > 10) write(*,100) f1, f2, df1dr, df1de, df2dr, df2de, rho_old, drho, eps_old, deps
+   !if(k_in > 498 .and. k_in < 502) write(*,100) f1, f2, df1dr, df1de, df2dr, df2de, rho_old, drho, eps_old, deps
+   !if(rho_t < 2.0D-2 .or. j > 5) then
+   !if(j_in == 1 .and. k_in == 1) then
+   !if(find_flag == .true. .and. rho_old == rho2_min) then
+   !if((j_in == 1 .and. k_in == 1)) then
+   !   write(*,"(3I5,10ES15.7)"), j_in, k_in, j, f1, f2, rho_old, drho, eps_old, deps, temp_loc
+   !endif
+   !read(*,*)
+
+   !rho_old = MAX(rho_old + drho, rho2_min)
+   !rho_old = rho_old + drho
+   !rho_old = MAX(rho_old + drho, rho_old / 2.0D0)
+   !eps_old = MAX(eps_old + deps, eps2_min)
+   !eps_old = eps_old + deps
+   !eps_old = MAX(eps_old + deps, eps_old / 2.0D0)
+
+
+   ! If the correct is too large try again
+   !IF(ABS(f1) < 1.0D-8 .and. ABS(f2) < 1.0D-8) exit
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !if(rho_old == rho2_a .and. drho < 0.0D0 .and. eps_old >= eps_loc_min) then
+   !
+   !   !f2 = (1.0D0 + gamma_loc * eps_old) * D_in**2 / rho_old - (gamma_loc - 1.0D0) * rho_old * eps_old - D_in - T_in
+   !   f2 = (1.0D0 + eps_old + p_loc / rho_old) * D_in**2 / rho_old - p_loc - D_in - T_in
+   !
+   !   !df2de = gamma_loc * D_in ** 2 / rho_old - (gamma_loc - 1.0D0) * rho_old
+   !   df2de = (1.0D0 + dpdeps_loc / rho_old) * D_in**2 / rho_old - dpdeps_loc  
+   !
+   !   deps = -f2 / df2de
+   !   drho = 0.0D0
+   !
+   !   !eps_old = MAX(eps_old + deps, eps2_min)
+   !
+   !   !IF(ABS(deps /eps_old) < 1.0D-8 .or. eps_old == eps2_min) exit
+   !
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !elseif(eps_old <= eps_loc_min .and. deps < 0.0D0 .and. rho_old > rho2_a) then
+   !
+   !   !f1 = (1.0D0 + gamma_loc * eps_old)**2 * (D_in**2 - rho_old**2) * D_in**2 / rho_old**2 - (Sr_in**2 + Sz_in**2)
+   !   f1 = (1.0D0 + eps_old + p_loc / rho_old)**2 * (D_in**2 - rho_old**2) * D_in**2 / rho_old**2 - (Sr_in**2 + Sz_in**2)
+   !
+   !   !df1dr = -2.0D0 * (1.0D0 + gamma_loc * eps_old)**2 * D_in ** 4 / rho_old**3
+   !   df1dr = 2.0D0 * (1.0D0 + eps_old + p_loc / rho_old) * (-p_loc / rho_old**2 + dpdrho_loc / rho_old) * (D_in**2 - rho_old**2) * D_in**2 / rho_old**2 + &
+   !           (1.0D0 + eps_old + p_loc / rho_old)**2 * (-2.0D0 * D_in**2 / rho_old**3) * D_in**2
+   !
+   !   drho = -f1 / df1dr
+   !   deps = 0.0D0
+   !
+   !   !rho_old = MAX(rho_old + drho, rho2_min)
+   !
+   !   !IF(ABS(drho /rho_old) < 1.0D-8 .or. rho_old == rho2_min) exit
+   !
+   !elseif(rho_old == rho2_a .and. drho < 0.0D0 .and. eps_old <= eps_loc_min .and. deps < 0.0D0) then
+   !
+   !   exit
+   !
+   !endif
+
+   !rho_old = MAX(rho_old + drho, rho2_a)
+   !eps_old = MAX(eps_old + deps, eps_loc_min)
+
+   rho_old = MAX(rho_old + drho, rho_abs_min)
+   eps_old = MAX(eps_old + deps, eps_abs_min)
+
+   call invert_helm_ed(eps_old, rho_old, abar_in, zbar_in, ye_in, temp_t, temp_loc, dummy)
+   !call teos_pressure(rho_old, temp_loc, abar_in, zbar_in, ye_in, p_loc, dpdrho_loc, dpdeps_loc, flag_notfindtemp) 
+   call HELMEOS_RtoP(rho_old, temp_loc, abar_in, zbar_in, ye_in, p_loc, dpdrho_loc, dpdeps_loc) 
+
+   if(rho_old <= rho2_a .and. eps_old <= eps_loc_min) exit
+   IF(ABS(drho /rho_old) < 1.0D-8 .and. ABS(deps / eps_old) < 1.0D-8) exit
+
+enddo
+
+!if(j > 20) then
+!   read(*,*)
+!endif
+
+!if(rho_old == rho2_a) eps_old = eps_loc_min
+
+if(rho_old <= rho2_a) rho_old = rho2_a
+
+rho_new = rho_old
+eps_new = eps_old
+
+call invert_helm_ed(eps_old, rho_old, abar_in, zbar_in, ye_in, temp_t, temp_loc, dummy)
+!call teos_pressure(rho_old, temp_loc, abar_in, zbar_in, ye_in, p_loc, dpdrho_loc, dpdeps_loc, flag_notfindtemp) 
+!call teos_gamma(rho_old, temp_loc, abar_in, zbar_in, gamma_loc, dummy)
+CALL HELMEOS_RtoP(rho_old, temp_loc, abar_in, zbar_in, ye_in, p_loc, dpdrho_loc, dpdeps_loc) 
+CALL HELMEOS_RtoE(rho_old, temp_loc, abar_in, zbar_in, gamma_loc, dummy, dummy)
+
+!if(j > 10) read(*,*)
+!if(k_in > 498 .and. k_in < 502) read(*,*)
+
+endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Then solve for the velocity
+! Solve by consider ratio and sum
+! Need to distinguish the fluid-at-rest case due to the zero denominator
+
+!if(rho_new > rho2_min) then
+
+if(Sr_in == 0.0D0) then
+ 
+   ! The case for 1D flow
+   if(Sz_in == 0.0D0) then
+      vel_r_old = 0.0D0
+      vel_z_old = 0.0D0
+
+   else
+      !rat = MIN(rho_new / D_in, 1.0D0)
+      vel_r_new = 0.0D0
+      !vel_z_new = SIGN(SQRT(1.0D0 - rat), Sz_in)
+      !vel_z_new = SIGN(0.5D0 * (-1.0D0 + SQRT(1.0D0 + 4.0D0 * (Sz_in / rho_new / (1.0D0 + gamma_loc * eps_new))**2)), Sz_in)
+
+      ! Try Newton-Rhapson
+      do j = 1, 100
+         !f3 = rho_new * (1.0D0 + gamma_loc * eps_new) * vel_z_old / (1 - vel_z_old**2) - Sz_in
+         !df3dvz = rho_new * (1.0D0 + gamma_loc * eps_new) * (1.0D0 + vel_z_old**2) / (1.0D0 - vel_z_old**2)**2
+
+         f3 = rho_new * (1.0D0 + eps_new + p_loc / rho_new) * vel_z_old / (1 - vel_z_old**2) - Sz_in
+         df3dvz = rho_new * (1.0D0 + eps_new + p_loc / rho_new) * (1.0D0 + vel_z_old**2) / (1.0D0 - vel_z_old**2)**2
+
+         dvz = -f3 / df3dvz           
+         if(ABS(vel_z_old + dvz) < 1.0D0) then
+            vel_z_old = vel_z_old + dvz
+         else
+            vel_z_old = SIGN(0.5D0 + ABS(vel_z_old / 2.0D0), vel_z_old)
+         endif
+
+         !if(j > 10)
+         !if(find_flag == .true.) write(*,*) vel_z_old, f3, df3dvz 
+         !if(j_in == 1 .and. k_in == 502) write(*,*) vel_z_old, f3, df3dvz
+         !if(k_in > 498 .and. k_in < 502) write(*,*) vel_z_old, f3, df3dvz
+         !if(find_flag == .true. .and. rho_old == rho2_min) write(*,*) vel_z_old, f3, df3dvz
+         !if(j_in == 1 .and. k_in == 251) write(*,*) vel_z_old, f3, df3dvz
+         if(ABS(f3) < 1.0D-8) exit
+      enddo
+
+   endif
+
+else
+
+   ! The general case
+   if(Sz_in == 0.0D0) then
+      !rat = MIN(rho_new / D_in, 1.0D0)
+      !vel_r_new = SIGN(SQRT(1.0D0 - rat), Sr_in)
+      !vel_r_new = SIGN(0.5D0 * (-1.0D0 + SQRT(1.0D0 + 4.0D0 * (Sr_in / rho_new / (1.0D0 + gamma_loc * eps_new))**2)), Sr_in)
+      do j = 1, 100
+
+         !f3 = rho_new * (1.0D0 + gamma_loc * eps_new) * vel_r_old / (1 - vel_r_old**2) - Sr_in
+         !df3dvr = rho_new * (1.0D0 + gamma_loc * eps_new) * (1.0D0 + vel_r_old**2) / (1.0D0 - vel_r_old**2)**2
+
+         f3 = rho_new * (1.0D0 + eps_new + p_loc / rho_new) * vel_r_old / (1 - vel_r_old**2) - Sr_in
+         df3dvr = rho_new * (1.0D0 + eps_new + p_loc / rho_new) * (1.0D0 + vel_r_old**2) / (1.0D0 - vel_r_old**2)**2
+
+         dvr = -f3 / df3dvr
+         !vel_r_old = vel_r_old + dvr
+         if(ABS(vel_r_old + dvr) < 1.0D0) then
+            vel_r_old = vel_r_old + dvr
+         else
+            vel_r_old = SIGN(0.5D0 + ABS(vel_r_old / 2.0D0), vel_r_old)
+         endif
+
+         !if(find_flag == .true.) write(*,*) vel_r_old, f3, df3dvr
+         !if(j > 10) write(*,*) vel_r_old, f3, df3dvr
+         !if(k_in > 498 .and. k_in < 502) write(*,*) vel_r_old, f3, df3dvr
+         !if(find_flag == .true. .and. ((ABS(vel_r_t) > 0.95D0 .or. ABS(vel_z_t) > 0.95D0) .or. rho_old == rho2_min)) write(*,*) vel_r_old, f3, df3dvr
+         if(ABS(f3) < 1.0D-8) exit
+
+      enddo
+      vel_z_new = 0.0D0
+
+   else
+      !rat = Sz_in / Sr_in
+      !vel_r_new = SIGN(SQRT(1.0D0 - (rho_new / D_in)**2) / (1.0D0 + rat**2), Sr_in)
+      !vel_z_new = SIGN(SQRT(1.0D0 - vel_r_new**2 - rho_new / D_in), Sz_in)
+
+      do j = 1, 100
+         !f3 = rho_new * (1.0D0 + gamma_loc * eps_new) * vel_r_old / (1 - vel_r_old**2 - vel_z_old**2) - Sr_in
+         !f4 = rho_new * (1.0D0 + gamma_loc * eps_new) * vel_z_old / (1 - vel_r_old**2 - vel_z_old**2) - Sz_in
+         !df3dvr = rho_new * (1.0D0 + gamma_loc * eps_new) * (1.0D0 + vel_r_old**2 - vel_z_old**2) / (1.0D0 - vel_r_old**2 - vel_z_old**2)**2
+         !df3dvz = 2.0D0 * rho_new * (1.0D0 + gamma_loc * eps_new) * vel_r_old * vel_z_old / (1.0D0 - vel_r_old**2 - vel_z_old**2)**2
+         !df4dvr = 2.0D0 * rho_new * (1.0D0 + gamma_loc * eps_new) * vel_r_old * vel_z_old / (1.0D0 - vel_r_old**2 - vel_z_old**2)**2
+         !df4dvz = rho_new * (1.0D0 + gamma_loc * eps_new) * (1.0D0 - vel_r_old** 2 + vel_z_old**2) / (1.0D0 - vel_r_old**2 - vel_z_old**2)**2
+
+         f3 = rho_new * (1.0D0 + eps_new + p_loc / rho_new) * vel_r_old / (1 - vel_r_old**2 - vel_z_old**2) - Sr_in
+         f4 = rho_new * (1.0D0 + eps_new + p_loc / rho_new) * vel_z_old / (1 - vel_r_old**2 - vel_z_old**2) - Sz_in
+         df3dvr = rho_new * (1.0D0 + eps_new + p_loc / rho_new) * (1.0D0 + vel_r_old**2 - vel_z_old**2) / (1.0D0 - vel_r_old**2 - vel_z_old**2)**2
+         df3dvz = 2.0D0 * rho_new * (1.0D0 + eps_new + p_loc / rho_new) * vel_r_old * vel_z_old / (1.0D0 - vel_r_old**2 - vel_z_old**2)**2
+         df4dvr = 2.0D0 * rho_new * (1.0D0 + eps_new + p_loc / rho_new) * vel_r_old * vel_z_old / (1.0D0 - vel_r_old**2 - vel_z_old**2)**2
+         df4dvz = rho_new * (1.0D0 + eps_new + p_loc / rho_new) * (1.0D0 - vel_r_old** 2 + vel_z_old**2) / (1.0D0 - vel_r_old**2 - vel_z_old**2)**2
+
+         dvr = (df3dvz * f4 - df4dvz * f3) / (df3dvr * df4dvz - df3dvz * df4dvr)
+         dvz = (df3dvr * f4 - df4dvr * f3) / (df3dvz * df4dvr - df3dvr * df4dvz)
+
+         !vel_r_old = vel_r_old + dvr
+         !vel_z_old = vel_z_old + dvz
+         vmag = (vel_r_old + dvr)**2 + (vel_z_old + dvz)**2
+         if(vmag > 1.0D0) then
+            LorFac = 0.5D0 + SQRT(vel_r_old**2 + vel_z_old**2) / 2.0D0
+            vel_r_old = (vel_r_old + dvr) * LorFac / vmag
+            vel_z_old = (vel_z_old + dvz) * LorFac / vmag
+         else
+            vel_r_old = vel_r_old + dvr
+            vel_z_old = vel_z_old + dvz
+         endif
+
+         !if(vel_r_old > 0.99 .and. vel_z_old > 0.99) then
+         !if((j_in == 205 .and. k_in == 210) .or. (j_in == 210 .and. k_in == 205)) then
+         !   write(*,100) vel_r_old, f3, df3dvr, df3dvz, vel_z_old, f4, df4dvr, df4dvz
+         !endif
+         if(ABS(f3) < 1.0D-8 .and. ABS(f4) < 1.0D-8) exit
+
+      enddo
+
+
+   endif
+
+endif
+
+vel_r_new = vel_r_old
+vel_z_new = vel_z_old
+
+!else
+
+!vel_r_new = 0.0D0
+!vel_z_new = 0.0D0
+
+!endif
+
+!if(ABS(vel_r_new) < 1.0D-6) vel_r_new = 0.0D0
+!if(ABS(vel_z_new) < 1.0D-6) vel_z_new = 0.0D0
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Export the calculation output
+
+rho_out = rho_new
+vel_r_out = vel_r_new
+vel_z_out = vel_z_new
+eps_out = eps_new
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Debug stuff !
+
+!if(find_flag == .true. .and. j_in == 1 .and. k_in == 1) then
+!if(find_flag == .true. .and. j_in > 1  .and. k_in > 1) then
+!if(find_flag == .true. .and. k_in > 498 .and. k_in < 502) then
+!if(rho_t < 2.0D-2 .or. j > 5) then
+!if(j_in == 1 .and. k_in == 1) then
+!if(find_flag == .true. .and. rho_old == rho2_min) then
+!   write(*,*) 'Report', j_in, k_in
+!   write(*,100) u_old(irho2,j_in,k_in), u_old(itau2,j_in,k_in)
+!   write(*,100) D_in, Sr_in, Sz_in, T_in 
+!   write(*,100) rho_t, vel_r_t, vel_z_t, eps_t, p2(j_in,k_in)
+!   write(*,100) rho_out, vel_r_out, vel_z_out, eps_out, temp_loc
+!   write(*,*)
+!   LorFac = 1.0D0 / SQRT(1.0D0 - vel_r_out**2 - vel_z_out**2)
+!   write(*,*) 'Check'
+!   write(*,100) D_in, rho_out * LORFAC
+!   write(*,100) Sr_in, rho_out * (1.0D0 + eps_out + p_loc / rho_out) * LorFac**2 * vel_r_out
+!   write(*,100) Sz_in, rho_out * (1.0D0 + eps_out + p_loc / rho_out) * LorFac**2 * vel_z_out
+!   write(*,100) T_in, rho_out * (1.0D0 + eps_out + p_loc / rho_out) * LorFac**2 - p_loc - rho_out * LorFac
+!   call private_invert_helm_ed((T_in + (rho_out * LorFac) + p_loc) / LorFac**2 / rho_out - 1.0D0 - p_loc/rho_out , &
+!                               rho_old, abar_in, zbar_in, ye_in, temp_t, temp_loc, flag_notfindtemp)
+!   write(*,100) (T_in + (rho_out * LorFac) + p_loc) / LorFac**2 / rho_out - 1.0D0 - p_loc/rho_out , temp_loc
+!   read(*,*)
+!endif
+
+!if(find_flag == .true.) then
+!if(find_flag == .true. .and. j > 10) then
+!if(find_flag == .true. .and. k_in > 498 .and. k_in < 502) then
+!if((j_in == 205 .and. k_in == 210) .or. (j_in == 210 .and. k_in == 205)) then
+!if(find_flag == .true. .and. (ABS(vel_r_t) > 0.99D0 .or. ABS(vel_z_t) > 0.99D0)) then
+!   LorFac = 1.0D0 / SQRT(1.0D0 - vel_r_out**2 - vel_z_out**2)
+!   write(*,*) 'Check'
+!   write(*,100) D_in, rho_out * LORFAC
+!   write(*,100) Sr_in, rho_out * (1.0D0 + gamma * eps_out) * LorFac**2 * vel_r_out
+!   write(*,100) Sz_in, rho_out * (1.0D0 + gamma * eps_out) * LorFac**2 * vel_z_out
+!   write(*,100) T_in, rho_out * (1.0D0 + gamma * eps_out) * LorFac**2 - (gamma - 1.0D0) * rho_out * eps_out - rho_out * LorFac
+!   read(*,*)
+!endif
+
+100 format(10Es15.8)
+101 format(2I3, 4ES15.8)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+end subroutine solveRDTHelm

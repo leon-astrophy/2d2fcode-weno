@@ -1,0 +1,272 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! This subroutine solves the implicit equation arised from the 
+! conversion from conservative variables to primitive variable
+! Newton-Rhapson method is used for iteration.
+! Density and temperature are capped/floored for stability.
+!
+! Written By Leung Shing Chi in 2016
+! Update by Leung Shing Chi in 2017
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+SUBROUTINE solveRDTPoly(j_in, k_in, D_in, Sr_in, Sz_in, T_in, rho_t, vel_r_t, vel_z_t, eps_t, &
+		        rho_out, vel_r_out, vel_z_out, eps_out) 
+USE definition
+USE helmeos_module
+IMPLICIT NONE
+
+! In and out variables
+INTEGER :: j_in, k_in
+REAL (DP) :: D_in, Sr_in, Sz_in, T_in
+REAL (DP) :: rho_t, vel_r_t, vel_z_t, eps_t, temp_t
+REAL (DP) :: abar_in, zbar_in, ye_in
+REAL (DP) :: rho_out, vel_r_out, vel_z_out, eps_out
+
+! Old and new state of rho, vel and eps
+REAL (DP) :: rho_old, vel_r_old, vel_z_old, eps_old
+REAL (DP) :: rho_new, vel_r_new, vel_z_new, eps_new
+
+! Temporary storage for rho and eps
+REAL (DP) :: rho_temp, eps_temp
+
+! Variables for varying rho, eps and vel
+REAL (DP) :: drho, deps, dvr, dvz, rat
+
+! Variables for solving the implicit equation of rho, eps and vel
+REAL (DP) :: f0
+REAL (DP) :: df0dLorFac
+REAL (DP) :: LorFac_temp, dlorfac
+REAL (DP) :: x, ratio
+REAL (DP) :: a1, a2
+
+! Lorentz factor and veloicity magnitude
+REAL (DP) :: LorFac, vmag
+REAL (DP) :: gamma_loc, gamma1_loc
+REAL (DP) :: temp_loc
+REAL (DP) :: p_loc, dpdrho_loc, dpdeps_loc
+
+REAL (DP) :: eps_loc_min
+
+! Dummy variables
+INTEGER :: i, j, flag_notfindtemp
+
+! Whether we can get the solution
+LOGICAL :: find_flag
+LOGICAL :: report_flag
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! First solve the couple system of density and internal energy
+
+! Debug stuff !
+!write(*,*) 'IN SolveRDT with ', j_in, k_in, D_in, Sr_in, Sz_in, T_in, rho_t, vel_r_t, vel_z_t, eps_t, temp_t, &
+!                        abar_in, zbar_in, ye_in, rho_out, vel_r_out, vel_z_out, eps_out
+
+find_flag = .false.
+report_flag = .false.
+
+! See if we need SR solver by doing a newtonian check
+!rho_new = D_in
+!vel_r_new = Sr_in / rho_new
+!vel_z_new = Sz_in / rho_new
+!eps_new = T_in / rho_new - 0.5D0 * (vel_r_new**2 + vel_z_new**2)
+!IF(ABS(vel_r_new) > 0.1D0 .or. ABS(vel_z_new) > 0.1D0) THEN
+
+
+IF(Sr_in == 0.0D0 .and. Sz_in == 0.0D0) THEN
+
+   ! If the source veloicty is zero, then we know 
+   ! rho and eps analytically
+
+   LorFac_temp = 1.0D0
+
+ELSE
+
+   ! Otherwise we need to solve iteratively
+
+   find_flag = .true.
+   !write(*,101) j_in, k_in, D_in, Sr_in, Sz_in, T_in
+
+   ! Give a classical solution by solve the Newtonian Conservative <-> Primative variables
+   rho_old = rho_t
+   vel_r_old = vel_r_t
+   vel_z_old = vel_z_t
+   eps_old = eps_t 
+   temp_loc = temp_t
+
+   !CALL teos_epsilon(rho_old, temp_min, abar_in, zbar_in, ye_in, eps_loc_min)
+   eps_loc_min = 0.0D0
+   GAMMA_LOC = gamma2     
+   gamma1_loc = gamma_loc / (gamma_loc - 1.0D0)
+
+   ! Try to give a good guess
+   !First look from 
+   DO j = -12, 4, 1
+      lorfac_temp = 1.0D0 + 10.0D0**(DBLE(j))
+      f0 =  ((LorFac_temp**2 * gamma1_loc * (T_in + D_in) - D_in * LorFac_temp) / (LorFac_temp**2 * gamma1_loc - 1.0D0))**2 - &
+          (Sr_in**2 + Sz_in**2) * LorFac_temp**2 / (LorFac_temp**2 - 1.0D0)
+      !WRITE(*,*)lorfac_temp, f0
+      IF(f0 > 0.0D0) THEN
+         lorfac_temp = 1.0D0 + 10.0D0**(DBLE(j-1))
+	 EXIT
+      ENDIF
+   ENDDO
+   IF(j >= 4) THEN
+      WRITE(*,*) 'Unable to resolve initial guess'
+      WRITE(*,"(A20,5ES13.5)") 'Input conservative', D_in, Sr_in, Sz_in, T_in
+      WRITE(*,"(3I5,10ES13.5)") j_in, k_in, j, lorfac_temp, f0
+      report_flag = .true.
+   ENDIF
+
+   DO j = 1, 100, 1
+
+      !if((eps_old /= epsilon2_a .and. rho_old /= rho2_a) .or. j == 1) then
+
+      !call teos_gamma(rho_old, temp_loc, abar_in, zbar_in, gamma_loc)  
+      !call teos_pressure(rho_old, temp_loc, abar_in, zbar_in, ye_in, p_loc, dpdrho_loc, dpdeps_loc, flag_notfindtemp) 
+
+      !a1 = ((LorFac_temp**2 * gamma1_loc * (T_in + D_in) - D_in * LorFac_temp) / (LorFac_temp**2 * gamma1_loc - 1.0D0))**2     
+      !a2 = -(Sr_in**2 + Sz_in**2) * LorFac_temp**2 / (LorFac_temp**2 - 1.0D0)
+      !f0 = a1 + a2
+
+      f0 =  ((LorFac_temp**2 * gamma1_loc * (T_in + D_in) - D_in * LorFac_temp) / (LorFac_temp**2 * gamma1_loc - 1.0D0))**2 - &
+           (Sr_in**2 + Sz_in**2) * LorFac_temp**2 / (LorFac_temp**2 - 1.0D0)
+      df0dlorfac = 2.0D0 * (LorFac_temp**2 * gamma1_loc * (T_in + D_in) - D_in * LorFac_temp) * &
+	          (LorFac_temp**2 * gamma1_loc * D_in + D_in - 2.0D0 * LorFac_temp * gamma1_loc * (T_in + D_in)) / &
+	          (LorFac_temp**2 * gamma1_loc - 1.0D0)**3 + &
+		   2.0D0 * (Sr_in**2 + Sz_in**2) * LorFac_temp / (LorFac_temp**2 - 1.0D0)**2 
+
+      dlorfac = - f0 / df0dlorfac
+      !dlorfac = 1.0D0
+
+      IF(report_flag == .true.) WRITE(*,"(3I5,10ES13.5)") j_in, k_in, j, lorfac_temp, f0, df0dlorfac
+
+      lorfac_temp = MAX(Lorfac_temp + dlorfac, 1.0D0)
+
+      IF(lorfac_temp == 1.0D0) EXIT
+      IF(ABS(dlorfac / lorfac_temp) < 1.0D-7) EXIT
+
+   ENDDO
+
+ENDIF
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+IF(report_flag == .true.) READ(*,*)
+
+! Then find the density from D_in and LorFac_temp
+
+rho_old = D_in / LorFac_temp
+
+! Then get the corresponding 
+
+p_loc = ((T_in + D_in) - D_in * LorFac_temp) / (LorFac_temp**2 * gamma1_loc - 1.0D0)
+eps_old = p_loc / rho_old / (gamma_loc - 1.0D0)
+
+! According to the LorFac_temp find the corresponding velocity
+IF(Sr_in == 0.0D0 .and. Sz_in == 0) THEN
+      
+   vel_r_old = 0.0D0
+   vel_z_old = 0.0D0
+
+ELSEIF(Sr_in /= 0.0D0 .and. Sz_in == 0) THEN 
+
+   x = Sr_in / (rho_old + p_loc + rho_old * eps_old)
+   vel_r_old = (SQRT(1.0D0 + 4.0D0 * x*x) - 1.0D0) / 2.0D0 / x
+   vel_z_old = 0.0D0
+
+ELSEIF(Sr_in == 0 .and. Sz_in /= 0) THEN
+
+   x = Sz_in / (rho_old + p_loc + rho_old * eps_old)
+   vel_r_old = 0.0D0
+   vel_z_old = (SQRT(1.0D0 + 4.0D0 * x*x) - 1.0D0) / 2.0D0 / x
+
+ELSEIF(Sr_in /= 0.0D0 .and. Sz_in /= 0.0D0) THEN
+
+   x = Sr_in / (rho_old + p_loc + rho_old * eps_old)
+   ratio = Sz_in / Sr_in 
+   vel_r_old = (SQRT(1.0D0 + 4.0D0 * (1.0D0 + ratio**2) * x*x) - 1.0D0) / 2.0D0 / x / (1.0D0 + ratio**2)
+   vel_z_old = ratio * vel_r_old
+ 
+ENDIF
+
+rho_new = rho_old
+vel_r_new = vel_r_old
+vel_z_new = vel_z_old
+eps_new = eps_old
+
+!IF(j > 1) THEN
+!   WRITE(*,*) rho_t, rho_new
+!   WRITE(*,*) vel_r_t, vel_r_new
+!   WRITE(*,*) vel_z_t, vel_z_new
+!   WRITE(*,*) eps_t, eps_new
+!   LorFac = 1.0D0 / SQRT(1.0D0 - vel_r_new**2 - vel_z_new**2)
+!   write(*,*) 'Check', LORFAC
+!   write(*,100) D_in, rho_new * LORFAC
+!   write(*,100) Sr_in, rho_new * (1.0D0 + gamma * eps_new) * LorFac**2 * vel_r_new
+!   write(*,100) Sz_in, rho_new * (1.0D0 + gamma * eps_new) * LorFac**2 * vel_z_new
+!   write(*,100) T_in, rho_new * (1.0D0 + gamma * eps_new) * LorFac**2 - (gamma - 1.0D0) * rho_new * eps_new - rho_new * LorFac
+!   read(*,*)        
+!endif
+
+!ELSE
+
+!ENDIF
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Export the calculation output
+
+rho_out = rho_new
+vel_r_out = vel_r_new
+vel_z_out = vel_z_new
+eps_out = eps_new
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Debug stuff 
+
+!if(find_flag == .true.) then
+!if(find_flag == .true. .and. j > 10) then
+!if(find_flag == .true. .and. k_in > 498 .and. k_in < 502) then
+!if(rho_t < 2.0D-2 .or. j > 5) then
+!if(j_in == 1 .and. k_in == length_step_z/2 + 1) then
+!if(find_flag == .true. .and. rho_old == rho2_min) then
+!   write(*,*) 'Report', j_in, k_in
+!   write(*,100) u_old(j_in,k_in,irho2), u_old(j_in,k_in,itau2)
+!   write(*,100) D_in, Sr_in, Sz_in, T_in 
+!   write(*,100) rho_t, vel_r_t, vel_z_t, eps_t, p2(j_in,k_in)
+!   write(*,100) rho_out, vel_r_out, vel_z_out, eps_out, temp_loc
+!   write(*,*)
+!   LorFac = 1.0D0 / SQRT(1.0D0 - vel_r_out**2 - vel_z_out**2)
+!   write(*,*) 'Check'
+!   write(*,100) D_in, rho_out * LORFAC
+!   write(*,100) Sr_in, rho_out * (1.0D0 + gamma * eps_out) * LorFac**2 * vel_r_out
+!   write(*,100) Sz_in, rho_out * (1.0D0 + gamma * eps_out) * LorFac**2 * vel_z_out
+!   write(*,100) T_in, rho_out * (1.0D0 + gamma * eps_out) * LorFac**2 - (gamma - 1.0D0) * rho_out * eps_out - rho_out * LorFac
+!   read(*,*)
+!endif
+
+!if(find_flag == .true.) then
+!if(find_flag == .true. .and. j > 10) then
+!if(find_flag == .true. .and. k_in > 498 .and. k_in < 502) then
+!if((j_in == 205 .and. k_in == 210) .or. (j_in == 210 .and. k_in == 205)) then
+!if(find_flag == .true. .and. (ABS(vel_r_t) > 0.99D0 .or. ABS(vel_z_t) > 0.99D0)) then
+!   LorFac = 1.0D0 / SQRT(1.0D0 - vel_r_out**2 - vel_z_out**2)
+!   write(*,*) 'Check'
+!   write(*,100) D_in, rho_out * LORFAC
+!   write(*,100) Sr_in, rho_out * (1.0D0 + gamma * eps_out) * LorFac**2 * vel_r_out
+!   write(*,100) Sz_in, rho_out * (1.0D0 + gamma * eps_out) * LorFac**2 * vel_z_out
+!   write(*,100) T_in, rho_out * (1.0D0 + gamma * eps_out) * LorFac**2 - (gamma - 1.0D0) * rho_out * eps_out - rho_out * LorFac
+!   read(*,*)
+!endif
+
+100 format(10Es15.8)
+101 format(2I3, 4ES15.8)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+END SUBROUTINE solveRDTPoly
+
+!call teos_gamma(rho2(j,k), temp2(j,k), abar2(j,k), zbar2(j,k), gamma2(j,k))

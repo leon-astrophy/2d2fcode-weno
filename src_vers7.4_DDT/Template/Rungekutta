@@ -1,0 +1,403 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Subroutine for fixing atmospheric velocity which maybe too large, not really used 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine fix_vel
+use definition
+implicit none
+
+integer :: j, k
+double precision :: gamma12, vel_mag
+
+integer :: count_vel
+
+count_vel = 0
+
+!do k = length_step_z_min_part, length_step_z_part, 1
+!   do j = 1, length_step_r_part, 1
+
+!      vel_mag = (vel2_r(j,k)**2 + vel2_z(j,k)**2)
+!      if(vel_mag > 0.1D0) then        
+!         vel2_r(j,k) = vel2_r(j,k) / SQRT(1.0D0 + vel_mag)
+!         vel2_z(j,k) = vel2_z(j,k) / SQRT(1.0D0 + vel_mag)
+!         count_vel = count_vel + 1
+!      endif
+
+!   enddo
+!enddo
+
+
+end subroutine fix_vel
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Subroutine for finding detonation transition point, replaced in findframevel.f90
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine finddetonseed
+use definition
+use helmeos_module
+use levelset_module
+implicit none
+
+integer :: i, j, k
+
+integer :: j2, k2
+
+real (DP) :: rho_loc, temp_loc
+real (DP) :: dist, temp_crit
+integer :: modify_scaG_flag
+
+do k = 1, length_step_z, 1
+   do j = 1, length_step_r, 1
+
+      rho_loc = rho2(j,k)
+      temp_loc = temp2(j,k)
+
+      if(rho_loc >= 4.86D-11) then
+         temp_crit = 3.0D0
+      elseif(rho_loc > 1.62D-11 .and. rho_loc < 4.86D-11) then
+         temp_crit = 2.0D0 + (rho_loc - 1.62D-11) / 3.24D-11
+      else
+      	 temp_crit = 100.0D0
+      endif
+
+      if(temp_loc > temp_crit .and. &
+	 !deton_ratio(j,k) > 0.0D0 .and. deton_ratio(j,k) < 1.0D0 .and. & 
+	 xiso(j,k,cc12) > 0.4D0 .and. xiso(j,k,co16) > 0.4D0) then
+
+         ! For the first flame, then switch to 
+         ! the output timescale and initialize
+         ! the related detonation level set
+         if(found_deton_flag == 0) then
+
+            write(*,*) 'First Occured at = ', global_time
+            write(*,*) 'Found deton at ', j, k
+	    write(*,*) 'Density = ', rho2(j,k)
+            write(*,*) 'Temp = ', temp2(j,k)
+            write(*,*)
+
+            !cfl = 0.2D0
+            output_file = .true.     
+            output_profiletime = 0.5D4
+            output_flametime = 0.5D4
+            output_turbtime = 0.5D4
+            output_Helmtime = 0.5D4
+            found_deton_flag = 1
+            found_deton_time = global_time
+
+            flame_ratio_old(:,:) = 0.0D0
+
+            ! Plant the level set
+            do j2 = 1, length_step_r, 1     
+               do k2 = 1, length_step_z, 1
+                  dist = DSQRT((r2(j2) - r2(j))**2 + (z2(k2) - z2(k))**2) - (dx * 1.5D0)
+                  scaG(j2,k2) = -dist
+               enddo
+            enddo
+        
+            CALL boundary1D_NM(scaG,even)
+               
+            ! Make sure the distance property of the level set
+            ! needs to be preserved always
+            call reinitialization2()               !You need this for aspherical initial flame
+            call identify_flamegrid()
+            call compute_flameratio()
+
+            !deton_ratio_old(:,:) = deton_ratio(:,:)
+
+         else
+
+            ! If this is the 2nd time (or above) for the
+            ! detonation to start, then simply plant
+            ! the detonation seed 
+            modify_scaG_flag = 0
+
+            !write(*,*) 'Occured at = ', global_time
+            !write(*,*) 'Found deton at ', j, k
+	    !write(*,*) 'Density = ', rho2(j,k)
+	    !write(*,*) 'Temp = ', temp2(j,k)
+            !write(*,*)
+
+            do j2 = j - 3, j + 3, 1
+               do k2 = k - 3, k + 3, 1
+        
+                  if(scaG(j,k) < -100.0D0) then
+                     dist = DSQRT((r2(j2) - r2(j))**2 + (z2(k2) - z2(k))**2) - (dx * 1.5D0)
+                     scaG(j2,k2) = -dist
+                     modify_scaG_flag = 1
+                  endif
+                       
+               enddo
+            enddo   
+
+            if(modify_scaG_flag == 1) then
+
+               CALL boundary1D_NM(scaG,even)
+               
+               !  Preserve the distance property
+               call reinitialization2()               !You need this for aspherical initial flame
+               call identify_flamegrid()
+               call compute_flameratio()
+
+            endif
+
+         endif
+
+      endif
+         
+   enddo
+enddo 
+
+end subroutine finddetonseed
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 
+! Subroutine to plant the detonation level-set once transition occur, not used 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+SUBROUTINE PLANTDETONSEED
+USE definition
+use helmeos_module
+use levelset_module
+implicit none
+
+integer :: i, j, k
+
+integer :: j2, k2
+
+real (DP) :: rho_loc, temp_loc
+real (DP) :: dist, temp_crit
+integer :: modify_scaG_flag
+
+write(*,*) 'Plant 2nd He-det seed at = ', global_time
+write(*,*) 'Plant deton at south pole'
+write(*,*)
+
+      
+! Plant the level set
+do j = 1, length_step_r, 1 
+   do k = 1, length_step_z, 1
+      dist = -DSQRT((r2(j))**2 + (z2(k) + (radius_ini + 30.0D0))**2) + 15.0D0
+      scaG2(j,k) = MAX(dist, scaG2(j,k))
+   enddo          
+enddo           
+
+CALL boundary1D_NM(scaG2,even)    
+
+! Make sure the distance property of the level set
+! Make sure the distance property of the level set
+! needs to be preserved always
+call reinitialization3()               !You need this for aspherical initial flame
+call identify_detongrid()  
+call compute_detonratio()
+
+!deton_ratio_old(:,:) = deton_ratio(:,:)
+
+end subroutine plantdetonseed
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Subroutine for fixing atmospheric velocity which maybe too large, not really used 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine fix_vel
+use definition
+implicit none
+
+integer :: j, k
+double precision :: gamma12, vel_mag
+
+integer :: count_vel
+
+count_vel = 0
+
+!do k = length_step_z_min_part, length_step_z_part, 1
+!   do j = 1, length_step_r_part, 1
+
+!      vel_mag = (vel2_r(j,k)**2 + vel2_z(j,k)**2)
+!      if(vel_mag > 0.1D0) then        
+!         vel2_r(j,k) = vel2_r(j,k) / SQRT(1.0D0 + vel_mag)
+!         vel2_z(j,k) = vel2_z(j,k) / SQRT(1.0D0 + vel_mag)
+!         count_vel = count_vel + 1
+!      endif
+
+!   enddo
+!enddo
+
+
+end subroutine fix_vel
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Subroutine for finding detonation transition point, replaced in findframevel.f90
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine finddetonseed
+use definition
+use helmeos_module
+use levelset_module
+implicit none
+
+integer :: i, j, k
+
+integer :: j2, k2
+
+real (DP) :: rho_loc, temp_loc
+real (DP) :: dist, temp_crit
+integer :: modify_scaG_flag
+
+do k = 1, length_step_z, 1
+   do j = 1, length_step_r, 1
+
+      rho_loc = rho2(j,k)
+      temp_loc = temp2(j,k)
+
+      if(rho_loc >= 4.86D-11) then
+         temp_crit = 3.0D0
+      elseif(rho_loc > 1.62D-11 .and. rho_loc < 4.86D-11) then
+         temp_crit = 2.0D0 + (rho_loc - 1.62D-11) / 3.24D-11
+      else
+      	 temp_crit = 100.0D0
+      endif
+
+      if(temp_loc > temp_crit .and. &
+	 !deton_ratio(j,k) > 0.0D0 .and. deton_ratio(j,k) < 1.0D0 .and. & 
+	 xiso(j,k,cc12) > 0.4D0 .and. xiso(j,k,co16) > 0.4D0) then
+
+         ! For the first flame, then switch to 
+         ! the output timescale and initialize
+         ! the related detonation level set
+         if(found_deton_flag == 0) then
+
+            write(*,*) 'First Occured at = ', global_time
+            write(*,*) 'Found deton at ', j, k
+	    write(*,*) 'Density = ', rho2(j,k)
+            write(*,*) 'Temp = ', temp2(j,k)
+            write(*,*)
+
+            !cfl = 0.2D0
+            output_file = .true.     
+            output_profiletime = 0.5D4
+            output_flametime = 0.5D4
+            output_turbtime = 0.5D4
+            output_Helmtime = 0.5D4
+            found_deton_flag = 1
+            found_deton_time = global_time
+
+            flame_ratio_old(:,:) = 0.0D0
+
+            ! Plant the level set
+            do j2 = 1, length_step_r, 1     
+               do k2 = 1, length_step_z, 1
+                  dist = DSQRT((r2(j2) - r2(j))**2 + (z2(k2) - z2(k))**2) - (dx * 1.5D0)
+                  scaG(j2,k2) = -dist
+               enddo
+            enddo
+        
+            CALL boundary1D_NM(scaG,even)
+               
+            ! Make sure the distance property of the level set
+            ! needs to be preserved always
+            call reinitialization2()               !You need this for aspherical initial flame
+            call identify_flamegrid()
+            call compute_flameratio()
+
+            !deton_ratio_old(:,:) = deton_ratio(:,:)
+
+         else
+
+            ! If this is the 2nd time (or above) for the
+            ! detonation to start, then simply plant
+            ! the detonation seed 
+            modify_scaG_flag = 0
+
+            !write(*,*) 'Occured at = ', global_time
+            !write(*,*) 'Found deton at ', j, k
+	    !write(*,*) 'Density = ', rho2(j,k)
+	    !write(*,*) 'Temp = ', temp2(j,k)
+            !write(*,*)
+
+            do j2 = j - 3, j + 3, 1
+               do k2 = k - 3, k + 3, 1
+        
+                  if(scaG(j,k) < -100.0D0) then
+                     dist = DSQRT((r2(j2) - r2(j))**2 + (z2(k2) - z2(k))**2) - (dx * 1.5D0)
+                     scaG(j2,k2) = -dist
+                     modify_scaG_flag = 1
+                  endif
+                       
+               enddo
+            enddo   
+
+            if(modify_scaG_flag == 1) then
+
+               CALL boundary1D_NM(scaG,even)
+               
+               !  Preserve the distance property
+               call reinitialization2()               !You need this for aspherical initial flame
+               call identify_flamegrid()
+               call compute_flameratio()
+
+            endif
+
+         endif
+
+      endif
+         
+   enddo
+enddo 
+
+end subroutine finddetonseed
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 
+! Subroutine to plant the detonation level-set once transition occur, not used 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+SUBROUTINE PLANTDETONSEED
+USE definition
+use helmeos_module
+use levelset_module
+implicit none
+
+integer :: i, j, k
+
+integer :: j2, k2
+
+real (DP) :: rho_loc, temp_loc
+real (DP) :: dist, temp_crit
+integer :: modify_scaG_flag
+
+write(*,*) 'Plant 2nd He-det seed at = ', global_time
+write(*,*) 'Plant deton at south pole'
+write(*,*)
+
+      
+! Plant the level set
+do j = 1, length_step_r, 1 
+   do k = 1, length_step_z, 1
+      dist = -DSQRT((r2(j))**2 + (z2(k) + (radius_ini + 30.0D0))**2) + 15.0D0
+      scaG2(j,k) = MAX(dist, scaG2(j,k))
+   enddo          
+enddo           
+
+CALL boundary1D_NM(scaG2,even)    
+
+! Make sure the distance property of the level set
+! Make sure the distance property of the level set
+! needs to be preserved always
+call reinitialization3()               !You need this for aspherical initial flame
+call identify_detongrid()  
+call compute_detonratio()
+
+!deton_ratio_old(:,:) = deton_ratio(:,:)
+
+end subroutine plantdetonseed

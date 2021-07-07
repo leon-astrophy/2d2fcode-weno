@@ -1,0 +1,509 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Some useful output for debug
+
+!WRITE(*,*) 'Report'
+!j = 1 
+!DO k = length_step_z-5, length_step_z+5, 1
+!   WRITE(*,"(10ES15.7)") rho2(j,K), vel2_r(j,k), vel2_z(j,k), temp2(j,k), epsilon2(j,k), &
+!			 phi_r(j,k), phi_z(j,k), vel_frame_r(j,k), vel_frame_z(j,k), turb_source(j,k)
+!ENDDO
+!WRITE(*,*)
+!k = length_step_z
+!DO j = -4, 5, 1
+!   WRITE(*,"(10ES15.7)") rho2(j,K), vel2_r(j,k), vel2_z(j,k), temp2(j,k), epsilon2(j,k), &
+!			 phi_r(j,k), phi_z(j,k), vel_frame_r(j,k), vel_frame_z(j,k), turb_source(j,k)
+!ENDDO
+!WRITE(*,*)
+!DO i = itau2, itau2, 1
+!j = 1
+!DO k = length_step_z-5, length_step_z+5, 1
+!   WRITE(*,"(10ES15.7)") u(j,k,i), l(j,k,i), dfdx(j,k,i), dfdz(j,k,i), f_r(j,k,i), f_z(j,k,i), &
+!		  	 sa_r(j,k,i), sa_z(j,k,i), sb(j,k,i)
+!ENDDO
+!WRITE(*,*)
+!k = length_step_z
+!DO j = -4, 5, 1
+!   WRITE(*,"(10ES15.7)") u(j,k,i), l(j,k,i), dfdx(j,k,i), dfdz(j,k,i), f_r(j,k,i), f_z(j,k,i), &               
+!                         sa_r(j,k,i), sa_z(j,k,i), sb(j,k,i)
+!ENDDO
+!READ(*,*)
+!ENDDO
+
+!j = length_step_r 
+!DO k = -4, 5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO      
+!WRITE(*,*) 
+!k = 1 
+!DO j = length_step_r-5, length_step_r+5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO 
+!READ(*,*)
+
+!j = 1 
+!DO k = length_step_z-5, length_step_z+5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO      
+!WRITE(*,*) 
+!k = length_Step_z+5 
+!DO j = -4, 5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO 
+!READ(*,*)
+
+!j = length_step_r
+!DO k = length_step_z-5, length_step_z+5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO      
+!WRITE(*,*) 
+!k = length_step_z
+!DO j = length_step_r-5, length_step_r+5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO 
+!READ(*,*)
+
+!WRITE(*,*) global_time, dt
+!j = 1
+!DO k = length_step_z*4/10-4, length_step_z*4/10+4, 1
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), temp2(j,k), epsilon2(j,k), &
+!		         rho3(j,k), vel3_r(j,k), vel3_z(j,k), temp3(j,k), epsilon3(j,k)  
+!ENDDO
+!IF(AMR_level1_flag==1) WRITE(*,"(10ES15.7)") rho2(1,1), vel2_r(1,1), vel2_z(1,1), temp2(1,1), epsilon2(1,1)
+
+!j = 21; k = 61
+!DO i = 1, imax2, 1
+!   WRITE(*,"(10ES13.5)") u(j,k,i), l(j,k,i), dfdx(j,k,i), dfdz(j,k,i), sb(j,k,i)
+!ENDDO
+!READ(*,*)
+
+!j = 1; k = 2
+!DO i = imin3, imax3, 1
+!   WRITE(*,"(10ES13.5)") u(j,k,i), l(j,k,i), dfdx(j,k,i), dfdz(j,k,i), sb(j,k,i), u(j+1,k,i), l(j+1,k,i), dfdx(j+1,k,i), dfdz(j+1,k,i), sb(j+1,k,i)
+!ENDDO
+!READ(*,*) 
+!j = 1; k = 1
+!DO i = imin2, imax2, 1
+!   WRITE(*,"(10ES13.5)") u(j,k,i), l(j,k,i), dfdx(j,k,i), dfdz(j,k,i), sb(j,k,i), u(j+1,k,i), l(j+1,k,i), dfdx(j+1,k,i), dfdz(j+1,k,i), sb(j+1,k,i)             
+!ENDDO
+!READ(*,*)
+
+!k = 40
+!DO j = -4, length_step_r+5, 1
+!   WRITE(*,"(11ES13.5)") r2(k), rho2(j,k), p2(j,k), vel2_r(j,k), vel2_z(j,k), epsilon2(j,k), &
+!			        rho3(j,k), p3(j,k), vel3_r(j,k), vel3_z(j,k), epsilon3(j,k)
+!ENDDO
+!WRITE(*,*) 
+!k = 40      
+!DO j = -4, length_step_r+5, 1
+!   WRITE(*,"(11ES13.5)") r3(k), l(j,k,imin2:imax3) 
+!ENDDO
+!READ(*,*)
+
+!j = 40
+!DO k = -4, length_step_z+5, 1
+!   WRITE(*,"(11ES13.5)") z2(k), rho2(j,k), p2(j,k), vel2_r(j,k), vel2_z(j,k), epsilon2(j,k), &
+!                                rho3(j,k), p3(j,k), vel3_r(j,k), vel3_z(j,k), epsilon3(j,k)
+!ENDDO     
+!WRITE(*,*)
+!j = 40
+!DO k = -4, length_step_z+5, 1
+!   WRITE(*,"(11ES13.5)") z3(k), l(j,k,imin2:imax3)
+!ENDDO             
+
+!READ(*,*)
+
+100 FORMAT (3I5, 20E14.7)
+110 FORMAT (20ES14.7)
+
+! Patch the effects of moving boundaries
+IF(movinggrid_flag == 1) THEN
+  
+   If (RUNDM_flag == 1) THEN
+	 DO k = length_step_z_min_part_1 - 5, length_step_z_part_1 + 5, 1
+      		DO j = -4, length_step_r_part_1 + 5, 1
+         	IF(rho1(j,k) > rho1_a) THEN
+	    		DO i = imin1, imax1, 1
+				f_r(j,k,i) = f_r(j,k,i) - u(j,k,i) * vel_frame_r1(j,k)
+				f_z(j,k,i) = f_z(j,k,i) - u(j,k,i) * vel_frame_z1(j,k)
+				sa_r(j,k,i) = sa_r(j,k,i) - u(j,k,i) * vel_frame_r1(j,k)
+				sa_z(j,k,i) = sa_z(j,k,i) - u(j,k,i) * vel_frame_z1(j,k)
+				sb(j,k,i) = sb(j,k,i) + u(j,k,i) * (3.0D0 * vel_max / radius)
+	    		ENDDO
+		 ENDIF
+      		ENDDO
+   	ENDDO
+   END IF
+
+   DO k = length_step_z_min_part_2 - 5, length_step_z_part_2 + 5, 1
+      DO j = -4, length_step_r_part_2 + 5, 1
+
+         IF(rho2(j,k) > rho2_a) THEN
+
+	    DO i = imin2, imax2, 1
+
+		f_r(j,k,i) = f_r(j,k,i) - u(j,k,i) * vel_frame_r2(j,k)
+		f_z(j,k,i) = f_z(j,k,i) - u(j,k,i) * vel_frame_z2(j,k)
+		sa_r(j,k,i) = sa_r(j,k,i) - u(j,k,i) * vel_frame_r2(j,k)
+		sa_z(j,k,i) = sa_z(j,k,i) - u(j,k,i) * vel_frame_z2(j,k)
+		sb(j,k,i) = sb(j,k,i) + u(j,k,i) * (3.0D0 * vel_max / radius)
+			   
+	    ENDDO
+
+	 ENDIF
+
+      ENDDO
+   ENDDO
+
+ENDIF
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This subroutine finds the suitable frame velocity v_f appears in !
+! v = v_f * r/R so that we can keep track on the whole star with   !
+! co-expanding grid 						   !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SUBROUTINE FINDFRAMEVEL
+USE DEFINITION
+IMPLICIT NONE
+
+! Integer parameter !
+INTEGER :: k, j, count_sum
+
+! Real parameter !
+REAL (DP) :: rho_max, rad_sum, rad_dist, rad_vel
+
+! Here I find the suitable velocity for the !
+! boundary to expand such that the whole star !
+! is always contained inside the box !
+
+! Define the density range to be considered
+rho_max = 1.0D2 * rho2_a !1.0D3 * rho2_a
+	
+! Searching NM atmosphere speed ! 
+! Initialize !
+rad_sum = 0.0D0
+vel_max = 0.0D0
+count_sum = 0
+
+DO k = length_step_z_min_part_2, length_step_z_part_2, 1
+	DO j = 1, length_step_r_part_2, 1
+		if(rho2(j,k) < rho_max) then
+			rad_dist = DSQRT(r2(j) ** 2 + z2(k) ** 2)
+			rad_vel = (vel2_r(j,k) * r2(j) + vel2_z(j,k) * z2(k)) / rad_dist
+			rad_sum = rad_sum + rad_dist
+			vel_max = vel_max + rad_vel
+			count_sum = count_sum + 1
+		endif
+	enddo
+enddo
+
+! If the star surface is too close to the box boundary
+! Artificially increase the boundary velocity
+IF(count_sum /= 0) THEN
+	vel_max = vel_max / DBLE(count_sum)
+	radius = rad_sum / DBLE(count_sum)
+ 	if(radius / dx > 0.9D0 * DBLE(length_step_r) .OR. &
+	radius / dx > 0.9D0 * DBLE(length_step_z)) vel_max = 2.0 * vel_max
+
+      	! Create the boundary velocity for NM First!
+	vel_frame_r2 (:,:) = 0.0D0
+	vel_frame_z2 (:,:) = 0.0D0
+
+	DO k = length_step_z_min_part_2, length_step_z_part_2, 1
+		DO j = 1, length_step_r_part_2, 1
+			IF(rho2(j,k) > rho2_a) then
+				vel_frame_r2(j,k) = vel_max * (DBLE(j) - 0.5D0) * dx / radius
+				vel_frame_z2(j,k) = vel_max * (DBLE(k) - 0.5D0) * dx / radius
+			ENDIF
+		ENDDO
+	ENDDO
+
+	! Copy the results to ghost cells !
+	CALL boundary1D_NM(vel_frame_r2, oddR)
+	CALL boundary1D_NM(vel_frame_z2, oddZ)
+
+	! Now for DM if movable 
+	If (RUNDM_flag == 1) THEN
+		vel_frame_r1 (:,:) = 0.0D0
+		vel_frame_z1 (:,:) = 0.0D0
+
+		DO k = length_step_z_min_part_1, length_step_z_part_1, 1
+			DO j = 1, length_step_r_part_1, 1
+				IF(rho1(j,k) > rho1_a) then
+					vel_frame_r1(j,k) = vel_max * (DBLE(j) - 0.5D0) * dx / radius
+					vel_frame_z1(j,k) = vel_max * (DBLE(k) - 0.5D0) * dx / radius
+				ENDIF
+			ENDDO
+		ENDDO
+
+		CALL boundary1D_DM(vel_frame_r1, oddR)
+		CALL boundary1D_DM(vel_frame_z1, oddZ)
+	END IF  
+ELSE
+
+	! Otherwise, zero all of them !
+	If (RUNDM_flag == 1) THEN
+		vel_frame_r1 (:,:) = 0.0D0
+		vel_frame_z1 (:,:) = 0.0D0
+	END IF
+	vel_frame_r2 (:,:) = 0.0D0
+	vel_frame_z2 (:,:) = 0.0D0
+
+ENDIF
+
+END SUBROUTINE
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Some useful output for debug
+
+!WRITE(*,*) 'Report'
+!j = 1 
+!DO k = length_step_z-5, length_step_z+5, 1
+!   WRITE(*,"(10ES15.7)") rho2(j,K), vel2_r(j,k), vel2_z(j,k), temp2(j,k), epsilon2(j,k), &
+!			 phi_r(j,k), phi_z(j,k), vel_frame_r(j,k), vel_frame_z(j,k), turb_source(j,k)
+!ENDDO
+!WRITE(*,*)
+!k = length_step_z
+!DO j = -4, 5, 1
+!   WRITE(*,"(10ES15.7)") rho2(j,K), vel2_r(j,k), vel2_z(j,k), temp2(j,k), epsilon2(j,k), &
+!			 phi_r(j,k), phi_z(j,k), vel_frame_r(j,k), vel_frame_z(j,k), turb_source(j,k)
+!ENDDO
+!WRITE(*,*)
+!DO i = itau2, itau2, 1
+!j = 1
+!DO k = length_step_z-5, length_step_z+5, 1
+!   WRITE(*,"(10ES15.7)") u(j,k,i), l(j,k,i), dfdx(j,k,i), dfdz(j,k,i), f_r(j,k,i), f_z(j,k,i), &
+!		  	 sa_r(j,k,i), sa_z(j,k,i), sb(j,k,i)
+!ENDDO
+!WRITE(*,*)
+!k = length_step_z
+!DO j = -4, 5, 1
+!   WRITE(*,"(10ES15.7)") u(j,k,i), l(j,k,i), dfdx(j,k,i), dfdz(j,k,i), f_r(j,k,i), f_z(j,k,i), &               
+!                         sa_r(j,k,i), sa_z(j,k,i), sb(j,k,i)
+!ENDDO
+!READ(*,*)
+!ENDDO
+
+!j = length_step_r 
+!DO k = -4, 5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO      
+!WRITE(*,*) 
+!k = 1 
+!DO j = length_step_r-5, length_step_r+5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO 
+!READ(*,*)
+
+!j = 1 
+!DO k = length_step_z-5, length_step_z+5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO      
+!WRITE(*,*) 
+!k = length_Step_z+5 
+!DO j = -4, 5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO 
+!READ(*,*)
+
+!j = length_step_r
+!DO k = length_step_z-5, length_step_z+5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO      
+!WRITE(*,*) 
+!k = length_step_z
+!DO j = length_step_r-5, length_step_r+5, 1 
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), p2(j,k), epsilon2(j,k) 
+!ENDDO 
+!READ(*,*)
+
+!WRITE(*,*) global_time, dt
+!j = 1
+!DO k = length_step_z*4/10-4, length_step_z*4/10+4, 1
+!   WRITE(*,"(10ES15.7)") rho2(j,k), vel2_r(j,k), vel2_z(j,k), temp2(j,k), epsilon2(j,k), &
+!		         rho3(j,k), vel3_r(j,k), vel3_z(j,k), temp3(j,k), epsilon3(j,k)  
+!ENDDO
+!IF(AMR_level1_flag==1) WRITE(*,"(10ES15.7)") rho2(1,1), vel2_r(1,1), vel2_z(1,1), temp2(1,1), epsilon2(1,1)
+
+!j = 21; k = 61
+!DO i = 1, imax2, 1
+!   WRITE(*,"(10ES13.5)") u(j,k,i), l(j,k,i), dfdx(j,k,i), dfdz(j,k,i), sb(j,k,i)
+!ENDDO
+!READ(*,*)
+
+!j = 1; k = 2
+!DO i = imin3, imax3, 1
+!   WRITE(*,"(10ES13.5)") u(j,k,i), l(j,k,i), dfdx(j,k,i), dfdz(j,k,i), sb(j,k,i), u(j+1,k,i), l(j+1,k,i), dfdx(j+1,k,i), dfdz(j+1,k,i), sb(j+1,k,i)
+!ENDDO
+!READ(*,*) 
+!j = 1; k = 1
+!DO i = imin2, imax2, 1
+!   WRITE(*,"(10ES13.5)") u(j,k,i), l(j,k,i), dfdx(j,k,i), dfdz(j,k,i), sb(j,k,i), u(j+1,k,i), l(j+1,k,i), dfdx(j+1,k,i), dfdz(j+1,k,i), sb(j+1,k,i)             
+!ENDDO
+!READ(*,*)
+
+!k = 40
+!DO j = -4, length_step_r+5, 1
+!   WRITE(*,"(11ES13.5)") r2(k), rho2(j,k), p2(j,k), vel2_r(j,k), vel2_z(j,k), epsilon2(j,k), &
+!			        rho3(j,k), p3(j,k), vel3_r(j,k), vel3_z(j,k), epsilon3(j,k)
+!ENDDO
+!WRITE(*,*) 
+!k = 40      
+!DO j = -4, length_step_r+5, 1
+!   WRITE(*,"(11ES13.5)") r3(k), l(j,k,imin2:imax3) 
+!ENDDO
+!READ(*,*)
+
+!j = 40
+!DO k = -4, length_step_z+5, 1
+!   WRITE(*,"(11ES13.5)") z2(k), rho2(j,k), p2(j,k), vel2_r(j,k), vel2_z(j,k), epsilon2(j,k), &
+!                                rho3(j,k), p3(j,k), vel3_r(j,k), vel3_z(j,k), epsilon3(j,k)
+!ENDDO     
+!WRITE(*,*)
+!j = 40
+!DO k = -4, length_step_z+5, 1
+!   WRITE(*,"(11ES13.5)") z3(k), l(j,k,imin2:imax3)
+!ENDDO             
+
+!READ(*,*)
+
+100 FORMAT (3I5, 20E14.7)
+110 FORMAT (20ES14.7)
+
+! Patch the effects of moving boundaries
+IF(movinggrid_flag == 1) THEN
+  
+   If (RUNDM_flag == 1) THEN
+	 DO k = length_step_z_min_part_1 - 5, length_step_z_part_1 + 5, 1
+      		DO j = -4, length_step_r_part_1 + 5, 1
+         	IF(rho1(j,k) > rho1_a) THEN
+	    		DO i = imin1, imax1, 1
+				f_r(j,k,i) = f_r(j,k,i) - u(j,k,i) * vel_frame_r1(j,k)
+				f_z(j,k,i) = f_z(j,k,i) - u(j,k,i) * vel_frame_z1(j,k)
+				sa_r(j,k,i) = sa_r(j,k,i) - u(j,k,i) * vel_frame_r1(j,k)
+				sa_z(j,k,i) = sa_z(j,k,i) - u(j,k,i) * vel_frame_z1(j,k)
+				sb(j,k,i) = sb(j,k,i) + u(j,k,i) * (3.0D0 * vel_max / radius)
+	    		ENDDO
+		 ENDIF
+      		ENDDO
+   	ENDDO
+   END IF
+
+   DO k = length_step_z_min_part_2 - 5, length_step_z_part_2 + 5, 1
+      DO j = -4, length_step_r_part_2 + 5, 1
+
+         IF(rho2(j,k) > rho2_a) THEN
+
+	    DO i = imin2, imax2, 1
+
+		f_r(j,k,i) = f_r(j,k,i) - u(j,k,i) * vel_frame_r2(j,k)
+		f_z(j,k,i) = f_z(j,k,i) - u(j,k,i) * vel_frame_z2(j,k)
+		sa_r(j,k,i) = sa_r(j,k,i) - u(j,k,i) * vel_frame_r2(j,k)
+		sa_z(j,k,i) = sa_z(j,k,i) - u(j,k,i) * vel_frame_z2(j,k)
+		sb(j,k,i) = sb(j,k,i) + u(j,k,i) * (3.0D0 * vel_max / radius)
+			   
+	    ENDDO
+
+	 ENDIF
+
+      ENDDO
+   ENDDO
+
+ENDIF
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This subroutine finds the suitable frame velocity v_f appears in !
+! v = v_f * r/R so that we can keep track on the whole star with   !
+! co-expanding grid 						   !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SUBROUTINE FINDFRAMEVEL
+USE DEFINITION
+IMPLICIT NONE
+
+! Integer parameter !
+INTEGER :: k, j, count_sum
+
+! Real parameter !
+REAL (DP) :: rho_max, rad_sum, rad_dist, rad_vel
+
+! Here I find the suitable velocity for the !
+! boundary to expand such that the whole star !
+! is always contained inside the box !
+
+! Define the density range to be considered
+rho_max = 1.0D2 * rho2_a !1.0D3 * rho2_a
+	
+! Searching NM atmosphere speed ! 
+! Initialize !
+rad_sum = 0.0D0
+vel_max = 0.0D0
+count_sum = 0
+
+DO k = length_step_z_min_part_2, length_step_z_part_2, 1
+	DO j = 1, length_step_r_part_2, 1
+		if(rho2(j,k) < rho_max) then
+			rad_dist = DSQRT(r2(j) ** 2 + z2(k) ** 2)
+			rad_vel = (vel2_r(j,k) * r2(j) + vel2_z(j,k) * z2(k)) / rad_dist
+			rad_sum = rad_sum + rad_dist
+			vel_max = vel_max + rad_vel
+			count_sum = count_sum + 1
+		endif
+	enddo
+enddo
+
+! If the star surface is too close to the box boundary
+! Artificially increase the boundary velocity
+IF(count_sum /= 0) THEN
+	vel_max = vel_max / DBLE(count_sum)
+	radius = rad_sum / DBLE(count_sum)
+ 	if(radius / dx > 0.9D0 * DBLE(length_step_r) .OR. &
+	radius / dx > 0.9D0 * DBLE(length_step_z)) vel_max = 2.0 * vel_max
+
+      	! Create the boundary velocity for NM First!
+	vel_frame_r2 (:,:) = 0.0D0
+	vel_frame_z2 (:,:) = 0.0D0
+
+	DO k = length_step_z_min_part_2, length_step_z_part_2, 1
+		DO j = 1, length_step_r_part_2, 1
+			IF(rho2(j,k) > rho2_a) then
+				vel_frame_r2(j,k) = vel_max * (DBLE(j) - 0.5D0) * dx / radius
+				vel_frame_z2(j,k) = vel_max * (DBLE(k) - 0.5D0) * dx / radius
+			ENDIF
+		ENDDO
+	ENDDO
+
+	! Copy the results to ghost cells !
+	CALL boundary1D_NM(vel_frame_r2, oddR)
+	CALL boundary1D_NM(vel_frame_z2, oddZ)
+
+	! Now for DM if movable 
+	If (RUNDM_flag == 1) THEN
+		vel_frame_r1 (:,:) = 0.0D0
+		vel_frame_z1 (:,:) = 0.0D0
+
+		DO k = length_step_z_min_part_1, length_step_z_part_1, 1
+			DO j = 1, length_step_r_part_1, 1
+				IF(rho1(j,k) > rho1_a) then
+					vel_frame_r1(j,k) = vel_max * (DBLE(j) - 0.5D0) * dx / radius
+					vel_frame_z1(j,k) = vel_max * (DBLE(k) - 0.5D0) * dx / radius
+				ENDIF
+			ENDDO
+		ENDDO
+
+		CALL boundary1D_DM(vel_frame_r1, oddR)
+		CALL boundary1D_DM(vel_frame_z1, oddZ)
+	END IF  
+ELSE
+
+	! Otherwise, zero all of them !
+	If (RUNDM_flag == 1) THEN
+		vel_frame_r1 (:,:) = 0.0D0
+		vel_frame_z1 (:,:) = 0.0D0
+	END IF
+	vel_frame_r2 (:,:) = 0.0D0
+	vel_frame_z2 (:,:) = 0.0D0
+
+ENDIF
+
+END SUBROUTINE
